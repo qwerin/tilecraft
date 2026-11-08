@@ -1,0 +1,102 @@
+# Produkční nasazení z hotového image (GitHub Actions → ghcr.io) za existujícím Traefikem.
+# Portainer: Stacks → Add stack → Repository, compose path deploy/docker-compose.yml,
+# proměnné podle deploy/.env.example. Bez Portaineru: .env vedle souboru a `docker compose up -d`.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tilecraft
+      POSTGRES_USER: tilecraft
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Nastav POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tilecraft"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ghcr.io/qwerin/tilecraft:${TILECRAFT_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      TILECRAFT_DB_DRIVER: postgres
+      TILECRAFT_DB_DSN: host=db user=tilecraft password=${POSTGRES_PASSWORD} dbname=tilecraft sslmode=disable
+      TILECRAFT_PUBLIC_URL: https://${DOMAIN:-tilecraft.svobo.cz}
+      TILECRAFT_ALLOW_SIGNUP: ${TILECRAFT_ALLOW_SIGNUP:-false}
+      TILECRAFT_SIGNUP_CODE: ${TILECRAFT_SIGNUP_CODE:-}
+      TILECRAFT_SUPERADMINS: ${TILECRAFT_SUPERADMINS:-}
+      TILECRAFT_SEED_DEMO: ${TILECRAFT_SEED_DEMO:-false}
+      # test = testovací instance (růžový motiv, štítek TEST)
+      TILECRAFT_ENV: ${TILECRAFT_ENV:-production}
+      # e-maily: bez TILECRAFT_EMAIL_LIVE=true se neodesílají, jen uloží (testovací instance vždy); Gmail nebo SMTP
+      TILECRAFT_EMAIL_LIVE: ${TILECRAFT_EMAIL_LIVE:-false}
+      TILECRAFT_GMAIL_USER: ${TILECRAFT_GMAIL_USER:-}
+      TILECRAFT_GMAIL_APP_PASSWORD: ${TILECRAFT_GMAIL_APP_PASSWORD:-}
+      TILECRAFT_SMTP_HOST: ${TILECRAFT_SMTP_HOST:-}
+      TILECRAFT_SMTP_PORT: ${TILECRAFT_SMTP_PORT:-587}
+      TILECRAFT_SMTP_USER: ${TILECRAFT_SMTP_USER:-}
+      TILECRAFT_SMTP_PASSWORD: ${TILECRAFT_SMTP_PASSWORD:-}
+      TILECRAFT_SMTP_FROM: ${TILECRAFT_SMTP_FROM:-}
+      TILECRAFT_SMTP_TLS: ${TILECRAFT_SMTP_TLS:-}
+      TILECRAFT_DKIM_DOMAIN: ${TILECRAFT_DKIM_DOMAIN:-}
+      TILECRAFT_DKIM_SELECTOR: ${TILECRAFT_DKIM_SELECTOR:-}
+      TILECRAFT_DKIM_PRIVATE_KEY: ${TILECRAFT_DKIM_PRIVATE_KEY:-}
+      # klíč šifrující uložené tajemství (hesla SMTP); prázdné = vygeneruje se do /data/secret.key (zálohuje se se svazkem)
+      TILECRAFT_SECRET_KEY: ${TILECRAFT_SECRET_KEY:-}
+      # Traefik je v docker síti; věříme jen privátním rozsahům Dockeru
+      TILECRAFT_TRUSTED_PROXIES: ${TILECRAFT_TRUSTED_PROXIES:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+    volumes:
+      - appdata:/data
+    networks: [internal, traefik]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-proxy}"
+      # HTTPS
+      - "traefik.http.routers.tilecraft.rule=Host(`${DOMAIN:-tilecraft.svobo.cz}`)"
+      - "traefik.http.routers.tilecraft.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.tilecraft.tls=true"
+      - "traefik.http.routers.tilecraft.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.routers.tilecraft.service=tilecraft"
+      - "traefik.http.services.tilecraft.loadbalancer.server.port=8080"
+      # HTTP → HTTPS
+      - "traefik.http.routers.tilecraft-http.rule=Host(`${DOMAIN:-tilecraft.svobo.cz}`)"
+      - "traefik.http.routers.tilecraft-http.entrypoints=web"
+      - "traefik.http.routers.tilecraft-http.middlewares=tilecraft-https-redirect"
+      - "traefik.http.middlewares.tilecraft-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.tilecraft-https-redirect.redirectscheme.permanent=true"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Denní záloha databáze a příloh do BACKUP_DIR na hostiteli (docs/BACKUP.md).
+  backup:
+    image: ghcr.io/qwerin/tilecraft-backup:${TILECRAFT_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: tilecraft
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: tilecraft
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-30 2 * * *}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_KEEP_MONTHS: ${BACKUP_KEEP_MONTHS:-12}
+    volumes:
+      - appdata:/data:ro
+      - ${BACKUP_DIR:-/srv/tilecraft-backups}:/backups
+    networks: [internal]
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  internal:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-proxy}
+
+volumes:
+  pgdata:
+  appdata:

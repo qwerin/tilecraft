@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tilecraft
+      POSTGRES_USER: tilecraft
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Nastav POSTGRES_PASSWORD v .env souboru}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tilecraft"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      # Výchozí jen na localhost (před aplikaci patří reverzní proxy s HTTPS).
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8080}:8080"
+    environment:
+      TILECRAFT_DB_DRIVER: postgres
+      TILECRAFT_DB_DSN: host=db user=tilecraft password=${POSTGRES_PASSWORD} dbname=tilecraft sslmode=disable
+      TILECRAFT_PUBLIC_URL: ${TILECRAFT_PUBLIC_URL:-http://localhost:8080}
+      TILECRAFT_ALLOW_SIGNUP: ${TILECRAFT_ALLOW_SIGNUP:-true}
+      TILECRAFT_SIGNUP_CODE: ${TILECRAFT_SIGNUP_CODE:-}
+      TILECRAFT_SUPERADMINS: ${TILECRAFT_SUPERADMINS:-}
+      TILECRAFT_SEED_DEMO: ${TILECRAFT_SEED_DEMO:-false}
+      # lokální stack je testovací (růžový motiv); produkce: deploy/docker-compose.yml
+      TILECRAFT_ENV: ${TILECRAFT_ENV:-test}
+      TILECRAFT_SECURE_COOKIES: ${TILECRAFT_SECURE_COOKIES:-}
+      # e-maily: bez TILECRAFT_EMAIL_LIVE=true se neodesílají, jen uloží (testovací instance vždy); Gmail nebo SMTP;
+      # ostrý Gmail lokálně: TILECRAFT_ENV=production + TILECRAFT_EMAIL_LIVE=true v .env
+      TILECRAFT_EMAIL_LIVE: ${TILECRAFT_EMAIL_LIVE:-false}
+      TILECRAFT_GMAIL_USER: ${TILECRAFT_GMAIL_USER:-}
+      TILECRAFT_GMAIL_APP_PASSWORD: ${TILECRAFT_GMAIL_APP_PASSWORD:-}
+      TILECRAFT_SMTP_HOST: ${TILECRAFT_SMTP_HOST:-}
+      TILECRAFT_SMTP_PORT: ${TILECRAFT_SMTP_PORT:-587}
+      TILECRAFT_SMTP_USER: ${TILECRAFT_SMTP_USER:-}
+      TILECRAFT_SMTP_PASSWORD: ${TILECRAFT_SMTP_PASSWORD:-}
+      TILECRAFT_SMTP_FROM: ${TILECRAFT_SMTP_FROM:-}
+      TILECRAFT_SMTP_TLS: ${TILECRAFT_SMTP_TLS:-}
+      TILECRAFT_TRUSTED_PROXIES: ${TILECRAFT_TRUSTED_PROXIES:-}
+    volumes:
+      - appdata:/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  appdata:

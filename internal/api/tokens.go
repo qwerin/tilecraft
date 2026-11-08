@@ -1,0 +1,75 @@
+package api
+
+import (
+	"context"
+	"net/http"
+	"time"
+
+	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/qwerin/tilecraft/internal/auth"
+	"github.com/qwerin/tilecraft/internal/model"
+)
+
+// APIToken is a personal API token of the current user (MCP, scripts).
+type APIToken struct {
+	ID         uint       `json:"id"`
+	Name       string     `json:"name"`
+	Prefix     string     `json:"prefix" doc:"First 8 characters of the token, for identification"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty" doc:"Omitted = never expires"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
+// CreatedAPIToken carries the plaintext of a new token.
+type CreatedAPIToken struct {
+	APIToken
+	Token string `json:"token" doc:"Plaintext token, returned only once"`
+}
+
+// APITokenCreate creates a token; tokens are revoked when the password changes.
+type APITokenCreate struct {
+	Name          string `json:"name" minLength:"1" maxLength:"100"`
+	ExpiresInDays int    `json:"expires_in_days,omitempty" minimum:"0" maximum:"3650" doc:"Lifetime in days; omitted = no expiry"`
+}
+
+func toAPIToken(t *model.APIToken) APIToken {
+	return APIToken{ID: t.ID, Name: t.Name, Prefix: t.Prefix, LastUsedAt: t.LastUsedAt, ExpiresAt: t.ExpiresAt, CreatedAt: t.CreatedAt}
+}
+
+func (s *server) registerTokens(authed huma.API) {
+	huma.Get(authed, "/api/auth/tokens", s.listTokens)
+	huma.Post(authed, "/api/auth/tokens", s.createToken, status(http.StatusCreated))
+	huma.Delete(authed, "/api/auth/tokens/{id}", s.deleteToken, status(http.StatusNoContent))
+}
+
+func (s *server) listTokens(ctx context.Context, _ *struct{}) (*Out[[]APIToken], error) {
+	// access tokens of connected OAuth applications are listed as grants
+	return all(s.db.WithContext(ctx).Where("user_id = ? AND oauth_grant_id IS NULL", auth.UserFrom(ctx).ID).Order("id DESC"), toAPIToken)
+}
+
+func (s *server) createToken(ctx context.Context, in *struct{ Body APITokenCreate }) (*Out[CreatedAPIToken], error) {
+	var exp *time.Time
+	if d := in.Body.ExpiresInDays; d > 0 {
+		t := s.deps.Now().Add(time.Duration(d) * 24 * time.Hour)
+		exp = &t
+	}
+	plain, tok, err := s.auth.CreateAPIToken(ctx, auth.UserFrom(ctx).ID, in.Body.Name, exp)
+	if err != nil {
+		return nil, dbErr(err, "token")
+	}
+	return &Out[CreatedAPIToken]{Body: CreatedAPIToken{APIToken: toAPIToken(tok), Token: plain}}, nil
+}
+
+func (s *server) deleteToken(ctx context.Context, in *struct {
+	ID uint `path:"id"`
+}) (*NoContent, error) {
+	res := s.db.WithContext(ctx).Where("id = ? AND user_id = ? AND oauth_grant_id IS NULL", in.ID, auth.UserFrom(ctx).ID).Delete(&model.APIToken{})
+	if res.Error != nil {
+		return nil, dbErr(res.Error, "token")
+	}
+	if res.RowsAffected == 0 {
+		return nil, notFound("token")
+	}
+	return &NoContent{}, nil
+}

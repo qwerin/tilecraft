@@ -1,0 +1,12 @@
+/bin/
+/data/
+*.db
+*.db-shm
+*.db-wal
+.env
+web/node_modules/
+web/dist/
+web/.tanstack/
+# podklady zákazníků (fotky papírových nabídek) a pracovní kopie — repo je veřejné
+/podklady/
+/.old/
