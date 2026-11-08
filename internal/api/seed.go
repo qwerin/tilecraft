@@ -21,13 +21,13 @@ const (
 	DemoPassword    = "demo1234"
 )
 
-// SeedDemo creates a demo firm when the database has no users yet: the default
+// SeedDemo creates a demo firm unless the demo user exists already: the default
 // price list, customers, the bathroom quote of the paper example (SPEC §0) as a
 // job in progress with a paid advance, a finished invoiced job, a sent quote and
 // a draft. Everything goes through the API handlers. Names are invented.
 func SeedDemo(ctx context.Context, db *gorm.DB, cfg config.Config) (bool, error) {
 	var n int64
-	if err := db.Model(&model.User{}).Count(&n).Error; err != nil || n > 0 {
+	if err := db.Model(&model.User{}).Where("email IN ?", []string{DemoEmail, DemoWorkerEmail}).Count(&n).Error; err != nil || n > 0 {
 		return false, err
 	}
 	now := time.Now()

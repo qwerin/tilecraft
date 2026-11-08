@@ -211,9 +211,13 @@ func TestIsolation(t *testing.T) {
 
 func TestSeedDemo(t *testing.T) {
 	ts := newTestServer(t)
+	ts.signup("someone@example.cz", "Jiná firma") // an existing firm does not prevent the demo
 	created, err := api.SeedDemo(context.Background(), ts.db, config.Config{PublicURL: "http://localhost:8080"})
 	if err != nil || !created {
 		t.Fatalf("seed: %v %v", created, err)
+	}
+	if again, err := api.SeedDemo(context.Background(), ts.db, config.Config{}); err != nil || again {
+		t.Fatalf("second seed: %v %v", again, err)
 	}
 	c := ts.anon()
 	me := doJSON[api.Me](c, http.StatusOK, "POST", "/api/auth/login", api.LoginInput{Email: api.DemoEmail, Password: api.DemoPassword})

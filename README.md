@@ -57,7 +57,7 @@ Zálohy: služba `backup` denně ukládá databázi a fotky do `/srv/tilecraft-b
 | `TILECRAFT_SIGNUP_CODE` | — | registrace nové firmy jen s tímto kódem (nebo jednorázovým od superadmina) |
 | `TILECRAFT_ALLOW_SIGNUP` | `true` | registrace bez kódu (jen když není `TILECRAFT_SIGNUP_CODE`) |
 | `TILECRAFT_SUPERADMINS` | — | e-maily superadminů (`/admin`) |
-| `TILECRAFT_SEED_DEMO` | `false` | demo firma při prázdné DB |
+| `TILECRAFT_SEED_DEMO` | `false` | založí demo firmu, pokud ještě není demo účet |
 | `TILECRAFT_ENV` | `production` | `test` = testovací instance (růžový motiv, nikdy neodesílá e-maily) |
 | `TILECRAFT_EMAIL_LIVE` | `false` | ostré odesílání e-mailů (jinak se jen uloží na stránku E-maily) |
 | `TILECRAFT_GMAIL_USER` / `_APP_PASSWORD` | — | odesílání přes Gmail; nebo `TILECRAFT_SMTP_*` (host, port, user, password, from, tls) |
