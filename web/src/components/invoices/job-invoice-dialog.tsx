@@ -20,27 +20,34 @@ export function JobInvoiceDialog({
   job,
   open,
   onOpenChange,
+  defaultKind,
 }: {
   slug: string
   job: Job
   open: boolean
   onOpenChange: (o: boolean) => void
+  /** Předvolený druh (tlačítko „Zálohová faktura“ / „Vyfakturovat“); bez něj podle stavu zakázky. */
+  defaultKind?: JobInvoiceInput['kind']
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">{open && <JobInvoiceForm slug={slug} job={job} onDone={() => onOpenChange(false)} />}</DialogContent>
+      <DialogContent className="sm:max-w-lg">
+        {open && <JobInvoiceForm slug={slug} job={job} defaultKind={defaultKind} onDone={() => onOpenChange(false)} />}
+      </DialogContent>
     </Dialog>
   )
 }
 
-function JobInvoiceForm({ slug, job, onDone }: { slug: string; job: Job; onDone: () => void }) {
+function JobInvoiceForm({ slug, job, defaultKind, onDone }: { slug: string; job: Job; defaultKind?: JobInvoiceInput['kind']; onDone: () => void }) {
   const navigate = useNavigate()
   const invoices = job.invoices ?? []
   const hasFinal = invoices.some((i) => i.kind === 'invoice')
   const advances = invoices.filter((i) => i.kind === 'advance' && !i.deducted)
   const total = job.totals?.total ?? job.total
 
-  const [kind, setKind] = useState<JobInvoiceInput['kind']>(hasFinal || advances.length === 0 ? 'advance' : 'invoice')
+  const [kind, setKind] = useState<JobInvoiceInput['kind']>(
+    defaultKind === 'invoice' && hasFinal ? 'advance' : (defaultKind ?? (hasFinal || advances.length === 0 ? 'advance' : 'invoice')),
+  )
   const [mode, setMode] = useState<'percent' | 'amount'>('percent')
   const [percent, setPercent] = useState('50')
   const [amount, setAmount] = useState('')
@@ -56,13 +63,20 @@ function JobInvoiceForm({ slug, job, onDone }: { slug: string; job: Job; onDone:
     e.preventDefault()
     const body: JobInvoiceInput =
       kind === 'advance'
-        ? { kind, issued_on: issued || undefined, ...(mode === 'percent' ? { percent: pct } : { amount: advance }) }
+        ? {
+            kind,
+            issued_on: issued || undefined,
+            ...(mode === 'percent' ? { percent: pct } : { amount: advance }),
+          }
         : { kind, issued_on: issued || undefined, summary }
     create.mutate(body, {
       onSuccess: (inv) => {
         toast.success(`${inv.kind === 'advance' ? 'Zálohová faktura' : 'Faktura'} ${inv.number} vystavena`)
         onDone()
-        void navigate({ to: '/a/$slug/invoices/$id', params: { slug, id: String(inv.id) } })
+        void navigate({
+          to: '/a/$slug/invoices/$id',
+          params: { slug, id: String(inv.id) },
+        })
       },
     })
   }
@@ -114,7 +128,14 @@ function JobInvoiceForm({ slug, job, onDone }: { slug: string; job: Job; onDone:
             </FormRow>
           ) : (
             <FormRow label="Částka zálohy (Kč)" htmlFor="adv-amount">
-              <Input id="adv-amount" inputMode="decimal" value={amount} placeholder="např. 20000" onChange={(e) => setAmount(e.target.value)} className="w-40" />
+              <Input
+                id="adv-amount"
+                inputMode="decimal"
+                value={amount}
+                placeholder="např. 20000"
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-40"
+              />
             </FormRow>
           )}
           <div className="flex items-baseline justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm">
@@ -143,20 +164,25 @@ function JobInvoiceForm({ slug, job, onDone }: { slug: string; job: Job; onDone:
           </p>
           {advances.length > 0 ? (
             <div className="rounded-lg border px-3 py-2 text-sm">
-              <p className="mb-1 font-medium">Odečtou se zálohy</p>
+              <p className="mb-1 font-medium">Zálohy</p>
               <ul className="flex flex-col gap-0.5">
                 {advances.map((a) => (
                   <li key={a.id} className="flex justify-between gap-2">
                     <span>
                       {a.number}{' '}
                       <span className={a.paid_on ? 'text-muted-foreground' : 'text-warning-foreground dark:text-warning'}>
-                        ({a.paid_on ? `zaplaceno ${fmtDate(a.paid_on)}` : 'zatím nezaplaceno'})
+                        ({a.paid_on ? `zaplaceno ${fmtDate(a.paid_on)}` : 'nezaplacená — neodečte se'})
                       </span>
                     </span>
-                    <span className="tabular-nums">−{money(a.total)}</span>
+                    <span className={a.paid_on ? 'tabular-nums' : 'text-muted-foreground tabular-nums line-through'}>−{money(a.total)}</span>
                   </li>
                 ))}
               </ul>
+              {advances.some((a) => !a.paid_on) && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Odečítají se jen zaplacené zálohy. Nezaplacenou zálohu nejdřív označte jako uhrazenou, nebo ji zákazník doplatí zvlášť.
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">Zakázka nemá žádné zálohy k odečtení.</p>

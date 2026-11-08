@@ -24,6 +24,8 @@ export const changelog: ChangelogEntry[] = [
         text: 'Zaměření místností přímo na stavbě, nabídka s cenami z ceníku, odkaz pro zákazníka k přijetí nabídky a faktura s QR platbou.',
         for: 'managers',
       },
+      { text: 'Návody k jednotlivým částem aplikace: krok za krokem, s tlačítky tak, jak je vidíte (menu Návody a odkaz „Návod“ v hlavičce stránek).' },
+      { text: 'Náčrt místností ze zaměření: podlaha v půdorysu, stěny rozvinuté s dveřmi a okny — kreslí se samo podle zadaných rozměrů.' },
     ],
   },
 ]

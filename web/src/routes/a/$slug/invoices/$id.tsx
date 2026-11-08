@@ -10,6 +10,7 @@ import { InvoiceDocument } from '@/components/invoices/invoice-document'
 import { InvoiceEmailDialog, InvoicePaidDialog } from '@/components/invoices/invoice-dialogs'
 import { InvoiceEditor } from '@/components/invoices/invoice-editor'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { GuideLink } from '@/components/guides/guide-link'
 import { useFirm } from '@/hooks/use-firm'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 
@@ -80,6 +81,7 @@ function InvoicePage() {
           </span>
         }
         description={<InvoiceMeta inv={inv} slug={slug} />}
+        actions={<GuideLink topic="faktury" />}
       />
 
       <div className="mb-4 flex flex-wrap gap-2">

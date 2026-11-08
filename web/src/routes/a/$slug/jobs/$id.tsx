@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { GuideLink } from '@/components/guides/guide-link'
 import { useFirm } from '@/hooks/use-firm'
 import { fmtDate, money } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -52,7 +53,9 @@ import { cn } from '@/lib/utils'
 // Detail zakázky (SPEC §6): zákazník (volat, navigovat), stav velkými tlačítky, termín a parta, fotky, deník,
 // zaměření, položky, srovnání s nabídkou a faktury. Parťák vidí vše bez cen a mění stav (ne zrušení).
 
-export const Route = createFileRoute('/a/$slug/jobs/$id')({ component: JobPage })
+export const Route = createFileRoute('/a/$slug/jobs/$id')({
+  component: JobPage,
+})
 
 function JobPage() {
   const { slug, isManager } = useFirm()
@@ -61,7 +64,7 @@ function JobPage() {
   const members = useMembers(slug).data ?? []
   const [editing, setEditing] = useState(false)
   const [editingItems, setEditingItems] = useState(false)
-  const [invoicing, setInvoicing] = useState(false)
+  const [invoicing, setInvoicing] = useState<'advance' | 'invoice' | null>(null)
 
   if (q.isPending) return <PageLoading />
   if (q.isError) return <PageError error={q.error} reset={() => void q.refetch()} />
@@ -70,7 +73,7 @@ function JobPage() {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
       <JobHeader job={job} slug={slug} isManager={isManager} onEdit={() => setEditing(true)} />
-      <StateCard job={job} slug={slug} isManager={isManager} onInvoice={() => setInvoicing(true)} />
+      <StateCard job={job} slug={slug} isManager={isManager} onInvoice={() => setInvoicing('invoice')} />
       <InfoPanel job={job} members={members} isManager={isManager} onEdit={() => setEditing(true)} />
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -100,7 +103,7 @@ function JobPage() {
         {isManager && (
           <div className="flex min-w-0 flex-col gap-4">
             <QuoteComparison slug={slug} job={job} />
-            <InvoicesPanel slug={slug} job={job} onInvoice={() => setInvoicing(true)} />
+            <InvoicesPanel slug={slug} job={job} onInvoice={setInvoicing} />
           </div>
         )}
       </div>
@@ -108,7 +111,13 @@ function JobPage() {
       {isManager && (
         <>
           <JobEditDialog slug={slug} job={job} open={editing} onOpenChange={setEditing} />
-          <JobInvoiceDialog slug={slug} job={job} open={invoicing} onOpenChange={setInvoicing} />
+          <JobInvoiceDialog
+            slug={slug}
+            job={job}
+            open={invoicing !== null}
+            defaultKind={invoicing ?? undefined}
+            onOpenChange={(o) => !o && setInvoicing(null)}
+          />
         </>
       )}
     </div>
@@ -135,6 +144,7 @@ function JobHeader({ job, slug, isManager, onEdit }: { job: Job; slug: string; i
           <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">{job.title}</h1>
           <p className="text-sm text-muted-foreground">{job.customer.name}</p>
         </div>
+        <GuideLink topic={isManager ? 'zakazka' : 'partaci'} compact className="shrink-0" />
         {isManager && (
           <div className="flex shrink-0 items-center gap-1">
             <Button variant="outline" onClick={onEdit} className="max-sm:hidden">
@@ -179,7 +189,10 @@ function JobHeader({ job, slug, isManager, onEdit }: { job: Job; slug: string; i
                       if (confirm === 'delete') {
                         await remove.mutateAsync(undefined)
                         toast.success('Zakázka smazána')
-                        void navigate({ to: '/a/$slug/jobs', params: { slug } })
+                        void navigate({
+                          to: '/a/$slug/jobs',
+                          params: { slug },
+                        })
                       } else {
                         await setState.mutateAsync('cancelled')
                         toast.success('Zakázka zrušena')
@@ -199,12 +212,18 @@ function JobHeader({ job, slug, isManager, onEdit }: { job: Job; slug: string; i
       {(job.customer.phone || address) && (
         <div className="grid grid-cols-2 gap-2 sm:flex">
           {job.customer.phone && (
-            <Button variant="outline" size="lg" render={<a href={telHref(job.customer.phone)} />}>
+            <Button variant="outline" size="lg" nativeButton={false} render={<a href={telHref(job.customer.phone)} />}>
               <PhoneIcon /> {job.customer.phone}
             </Button>
           )}
           {address && (
-            <Button variant="outline" size="lg" render={<a href={mapsUrl(address)} target="_blank" rel="noreferrer" />} className={cn(!job.customer.phone && 'col-span-2')}>
+            <Button
+              variant="outline"
+              size="lg"
+              nativeButton={false}
+              render={<a href={mapsUrl(address)} target="_blank" rel="noreferrer" />}
+              className={cn(!job.customer.phone && 'col-span-2')}
+            >
               <NavigationIcon /> Navigovat
             </Button>
           )}
@@ -234,7 +253,12 @@ function StateCard({ job, slug, isManager, onInvoice }: { job: Job; slug: string
   let primary: ReactNode = null
   if (next) {
     primary = (
-      <Button size="lg" className="h-12 w-full text-base sm:w-auto sm:px-6 md:h-11" disabled={setState.isPending} onClick={() => move(next.to, next.to === 'done' ? 'Zakázka je hotová' : 'Práce zahájena')}>
+      <Button
+        size="lg"
+        className="h-12 w-full text-base sm:w-auto sm:px-6 md:h-11"
+        disabled={setState.isPending}
+        onClick={() => move(next.to, next.to === 'done' ? 'Zakázka je hotová' : 'Práce zahájena')}
+      >
         <next.icon className="size-5" /> {next.label}
       </Button>
     )
@@ -246,7 +270,13 @@ function StateCard({ job, slug, isManager, onInvoice }: { job: Job; slug: string
     )
   } else if (job.state === 'cancelled' && isManager) {
     primary = (
-      <Button size="lg" variant="outline" className="h-12 w-full sm:w-auto md:h-11" disabled={setState.isPending} onClick={() => move('planned', 'Zakázka obnovena')}>
+      <Button
+        size="lg"
+        variant="outline"
+        className="h-12 w-full sm:w-auto md:h-11"
+        disabled={setState.isPending}
+        onClick={() => move('planned', 'Zakázka obnovena')}
+      >
         <RotateCcwIcon /> Obnovit zakázku
       </Button>
     )
@@ -258,7 +288,9 @@ function StateCard({ job, slug, isManager, onInvoice }: { job: Job; slug: string
         ? 'Práce je hotová — vystavte fakturu.'
         : 'Práce je hotová. Fakturu vystaví kancelář.'
       : job.state === 'invoiced'
-        ? 'Zakázka je vyfakturovaná a uhrazená.'
+        ? job.invoices?.some((i) => i.kind === 'invoice' && !i.paid_on)
+          ? 'Zakázka je vyfakturovaná, faktura čeká na úhradu.'
+          : 'Zakázka je vyfakturovaná.'
         : job.state === 'cancelled'
           ? 'Zakázka je zrušená.'
           : null
@@ -271,7 +303,13 @@ function StateCard({ job, slug, isManager, onInvoice }: { job: Job; slug: string
           {primary}
           {hint && <p className="text-sm text-muted-foreground sm:flex-1">{hint}</p>}
           {back && (
-            <Button variant="ghost" size="sm" className="self-center text-muted-foreground sm:ml-auto" disabled={setState.isPending} onClick={() => move(back.to, 'Stav vrácen')}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="self-center text-muted-foreground sm:ml-auto"
+              disabled={setState.isPending}
+              onClick={() => move(back.to, 'Stav vrácen')}
+            >
               <RotateCcwIcon /> {back.label}
             </Button>
           )}
@@ -374,7 +412,7 @@ function Linkified({ text }: { text: string }) {
   )
 }
 
-function InvoicesPanel({ slug, job, onInvoice }: { slug: string; job: Job; onInvoice: () => void }) {
+function InvoicesPanel({ slug, job, onInvoice }: { slug: string; job: Job; onInvoice: (kind: 'advance' | 'invoice') => void }) {
   const canInvoice = job.state !== 'cancelled' && job.state !== 'invoiced' && job.lines.length > 0
   return (
     <Panel id="faktury" title="Faktury">
@@ -412,10 +450,10 @@ function InvoicesPanel({ slug, job, onInvoice }: { slug: string; job: Job; onInv
       )}
       {canInvoice && (
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" onClick={onInvoice}>
+          <Button variant="outline" onClick={() => onInvoice('advance')}>
             Zálohová faktura
           </Button>
-          <Button onClick={onInvoice}>
+          <Button onClick={() => onInvoice('invoice')}>
             <ReceiptTextIcon /> Vyfakturovat
           </Button>
         </div>

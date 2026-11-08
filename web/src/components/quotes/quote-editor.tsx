@@ -57,6 +57,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { GuideLink } from '@/components/guides/guide-link'
 import { useFirm } from '@/hooks/use-firm'
 import { addDays, fmtDate, fmtDateTime, money, today } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -263,7 +264,7 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
       </DropdownMenuItem>
       {!locked && (
         <DropdownMenuItem onClick={() => setDialog('send')}>
-          <SendIcon /> {quote.state === 'sent' ? 'Odeslat znovu / sdílet odkaz' : 'Odeslat zákazníkovi'}
+          <SendIcon /> {quote.state === 'sent' ? 'Poslat znovu' : 'Odeslat zákazníkovi'}
         </DropdownMenuItem>
       )}
       <DropdownMenuItem onClick={onDuplicate}>
@@ -282,7 +283,7 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
       )}
       {quote.state !== 'rejected' && !quote.job_id && (
         <DropdownMenuItem onClick={onCreateJob}>
-          <HardHatIcon /> Vytvořit zakázku
+          <HardHatIcon /> {quote.state === 'accepted' ? 'Vytvořit zakázku' : 'Zákazník přijal → vytvořit zakázku'}
         </DropdownMenuItem>
       )}
       {quote.state !== 'draft' && !quote.job_id && (
@@ -320,6 +321,7 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
           <p className="mt-0.5 truncate text-sm text-muted-foreground">{isNew ? 'Zákazník → místnosti → položky → uložit.' : form.title || autoTitle(form)}</p>
         </div>
         <div className="flex items-center gap-2">
+          <GuideLink topic={isNew ? 'zamereni' : 'nabidka'} compact />
           {quote && (
             <div className="flex flex-wrap gap-2 max-lg:hidden">
               <Button variant="outline" onClick={openPdf}>
@@ -327,7 +329,7 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
               </Button>
               {!locked && (
                 <Button variant="outline" onClick={() => setDialog('send')}>
-                  <SendIcon /> {quote.state === 'sent' ? 'Sdílet / poslat znovu' : 'Odeslat'}
+                  <SendIcon /> {quote.state === 'sent' ? 'Poslat znovu' : 'Odeslat'}
                 </Button>
               )}
               {locked && quote.state === 'accepted' && !quote.job_id && (
@@ -575,7 +577,7 @@ function StateBanner({
         )}
         {q.state === 'sent' && (
           <Button size="sm" variant="outline" onClick={onSend}>
-            <SendIcon /> Sdílet odkaz
+            <SendIcon /> Poslat znovu
           </Button>
         )}
         {decided && !q.job_id && (

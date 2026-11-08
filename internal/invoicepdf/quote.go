@@ -102,7 +102,7 @@ func QuotePDF(q Quote) (_ []byte, err error) {
 		}
 		rows = append(rows, sumRow{label, Money(-q.Discount)})
 	}
-	totalLabel, footer := "Celkem", "Zhotovitel není plátcem DPH."
+	totalLabel, footer := "Celkem", "Nejsem plátce DPH."
 	if q.VatPayer {
 		rows = append(rows, sumRow{"Základ DPH", Money(q.Base)}, sumRow{"DPH " + strconv.Itoa(q.VatRate) + nbsp + "%", Money(q.Vat)})
 		totalLabel, footer = "Celkem vč. DPH", ""

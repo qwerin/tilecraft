@@ -6,6 +6,7 @@ import { CardList, DataTable, EmptyRow, EmptyState, NativeSelect, PageHeader, St
 import { Segmented } from '@/components/invoices/segmented'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { GuideLink } from '@/components/guides/guide-link'
 import { useFirm } from '@/hooks/use-firm'
 import { fmtDate, money, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -76,7 +77,7 @@ function InvoicesPage() {
   if (!isPending && !filtered && items.length === 0)
     return (
       <div className="mx-auto max-w-5xl">
-        <PageHeader title="Faktury" />
+        <PageHeader title="Faktury" actions={<GuideLink topic="faktury" />} />
         <EmptyState
           icon={ReceiptTextIcon}
           title="Zatím žádné faktury"
@@ -88,7 +89,15 @@ function InvoicesPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Faktury" actions={newButton}>
+      <PageHeader
+        title="Faktury"
+        actions={
+          <>
+            <GuideLink topic="faktury" />
+            {newButton}
+          </>
+        }
+      >
         <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
           <Segmented
             className="w-full md:w-auto"

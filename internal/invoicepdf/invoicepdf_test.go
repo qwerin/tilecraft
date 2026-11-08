@@ -291,7 +291,7 @@ func TestQuoteEmptyParts(t *testing.T) {
 	q.Measures, q.Discount, q.DiscountPct, q.URL = nil, 0, 0, ""
 	q.VatPayer, q.Base, q.Vat, q.Total = false, m(24356), 0, m(24356)
 	b := checkPDF(t)(QuotePDF(q))
-	contains(t, "quote", b, "Práce celkem", "Ostatní celkem", "Celkem", "24 356 Kč", "Zhotovitel není plátcem DPH.")
+	contains(t, "quote", b, "Práce celkem", "Ostatní celkem", "Celkem", "24 356 Kč", "Nejsem plátce DPH.")
 	for _, s := range []string{"Materiál", "Zaměření", "Sleva", "Přijetí nabídky", "Základ DPH"} {
 		if bytes.Contains(b, pdfText(nb(s))) {
 			t.Errorf("%q printed", s)

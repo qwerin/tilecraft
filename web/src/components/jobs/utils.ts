@@ -41,37 +41,23 @@ export const jobEnd = (j: { start_on: string; end_on: string }) => (j.end_on && 
 
 export const dayDiff = (a: string, b: string) => Math.round((parseDay(b).getTime() - parseDay(a).getTime()) / 86_400_000)
 
-export type CalendarSpan = '2w' | 'month'
-
-/** Rozsah dnů zobrazeného období; `at` je libovolný den v něm. */
-export function calendarRange(at: string, span: CalendarSpan): { from: string; to: string; days: string[] } {
-  let from: string
-  let n: number
-  if (span === 'month') {
-    const d = parseDay(at)
-    from = toDay(new Date(d.getFullYear(), d.getMonth(), 1))
-    n = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
-  } else {
-    from = weekStart(at)
-    n = 14
-  }
-  const days = Array.from({ length: n }, (_, i) => addDays(from, i))
-  return { from, to: days[n - 1], days }
+/** Měsíční mřížka kalendáře: celé týdny (Po–Ne) pokrývající měsíc dne `at`. */
+export function monthGrid(at: string): { month: string; from: string; to: string; weeks: string[][] } {
+  const d = parseDay(at)
+  const first = toDay(new Date(d.getFullYear(), d.getMonth(), 1))
+  const last = toDay(new Date(d.getFullYear(), d.getMonth() + 1, 0))
+  const from = weekStart(first)
+  const weeks: string[][] = []
+  for (let w = from; w <= last; w = addDays(w, 7)) weeks.push(Array.from({ length: 7 }, (_, i) => addDays(w, i)))
+  return { month: first.slice(0, 7), from, to: weeks[weeks.length - 1][6], weeks }
 }
 
-/** Posun období o jedno dozadu/dopředu. */
-export function shiftRange(at: string, span: CalendarSpan, dir: -1 | 1): string {
-  if (span === 'month') {
-    const d = parseDay(at)
-    return toDay(new Date(d.getFullYear(), d.getMonth() + dir, 1))
-  }
-  return addDays(weekStart(at), 14 * dir)
+/** Den v předchozím / dalším měsíci (první den měsíce). */
+export function shiftMonth(at: string, dir: -1 | 1): string {
+  const d = parseDay(at)
+  return toDay(new Date(d.getFullYear(), d.getMonth() + dir, 1))
 }
 
 const monthFmt = new Intl.DateTimeFormat('cs-CZ', { month: 'long', year: 'numeric' })
 
-export function rangeTitle(at: string, span: CalendarSpan) {
-  if (span === 'month') return monthFmt.format(parseDay(at))
-  const { from, to } = calendarRange(at, span)
-  return `${fmtShort(from)} – ${fmtShort(to)} ${parseDay(to).getFullYear()}`
-}
+export const monthTitle = (at: string) => monthFmt.format(parseDay(at))

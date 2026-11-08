@@ -5,17 +5,18 @@ import { z } from 'zod'
 import { jobStateBar, jobStateLabels, useJobs, type JobSummary } from '@/api/jobs'
 import { useMembers } from '@/api/queries'
 import type { Member } from '@/api/types'
+import { GuideLink } from '@/components/guides/guide-link'
 import { CardList, DataTable, EmptyRow, EmptyState, PageHeader, Pager, cardClass } from '@/components/common'
 import { CrewAvatars } from '@/components/jobs/crew'
-import { CalendarNav, JobAgenda, JobTimeline } from '@/components/jobs/job-calendar'
+import { CalendarNav, DayJobs, MonthCalendar } from '@/components/jobs/job-calendar'
 import { JobStateBadge } from '@/components/jobs/job-state'
-import { calendarRange, jobTerm, type CalendarSpan } from '@/components/jobs/utils'
+import { jobTerm, monthGrid } from '@/components/jobs/utils'
 import { Input } from '@/components/ui/input'
 import { useFirm } from '@/hooks/use-firm'
 import { money, today } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-// Zakázky (SPEC §6): seznam se záložkami podle stavu a hledáním, nebo kalendář (časová osa / na telefonu po dnech).
+// Zakázky (SPEC §6): seznam se záložkami podle stavu a hledáním, nebo měsíční kalendář (vybraný den v `at`).
 // Parťák vidí totéž bez cen.
 
 const search = z.object({
@@ -23,7 +24,6 @@ const search = z.object({
   state: z.string().optional().catch(undefined),
   q: z.string().optional().catch(undefined),
   page: z.number().int().positive().optional().catch(undefined),
-  span: z.enum(['2w', 'month']).optional().catch(undefined),
   at: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -63,26 +63,29 @@ function JobsPage() {
         title="Zakázky"
         description={isManager ? 'Z přijatých nabídek; termíny, parta, fotky a deník.' : 'Kde se pracuje, fotky a deník.'}
         actions={
-          <div className="inline-flex rounded-lg bg-muted p-[3px] text-sm">
-            {(
-              [
-                ['list', 'Seznam', ListIcon],
-                ['calendar', 'Kalendář', CalendarDaysIcon],
-              ] as const
-            ).map(([v, label, Icon]) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => set({ view: v === 'list' ? undefined : v, page: undefined })}
-                className={cn(
-                  'flex h-9 items-center gap-1.5 rounded-md px-3 font-medium text-foreground/60 md:h-7',
-                  view === v && 'bg-background text-foreground shadow-sm',
-                )}
-              >
-                <Icon className="size-4" />
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <GuideLink topic="zakazka" />
+            <div className="inline-flex rounded-lg bg-muted p-[3px] text-sm">
+              {(
+                [
+                  ['list', 'Seznam', ListIcon],
+                  ['calendar', 'Kalendář', CalendarDaysIcon],
+                ] as const
+              ).map(([v, label, Icon]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => set({ view: v === 'list' ? undefined : v, page: undefined })}
+                  className={cn(
+                    'flex h-9 items-center gap-1.5 rounded-md px-3 font-medium text-foreground/60 md:h-7',
+                    view === v && 'bg-background text-foreground shadow-sm',
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         }
       >
@@ -93,7 +96,12 @@ function JobsPage() {
                 <button
                   key={t.value}
                   type="button"
-                  onClick={() => set({ state: t.value === 'open' ? undefined : t.value, page: undefined })}
+                  onClick={() =>
+                    set({
+                      state: t.value === 'open' ? undefined : t.value,
+                      page: undefined,
+                    })
+                  }
                   className={cn(
                     'h-9 rounded-full border px-3 text-sm whitespace-nowrap transition-colors md:h-8',
                     state === t.value ? 'border-foreground bg-foreground text-background' : 'bg-card text-muted-foreground hover:text-foreground',
@@ -114,9 +122,8 @@ function JobsPage() {
           state={state}
           q={s.q}
           at={s.at ?? today()}
-          span={s.span ?? '2w'}
           members={members}
-          onRange={(at, span) => set({ at: at === today() ? undefined : at, span: span === '2w' ? undefined : span })}
+          onSelect={(at) => set({ at: at === today() ? undefined : at })}
         />
       ) : (
         <ListView slug={slug} state={state} q={s.q} page={s.page ?? 1} members={members} isManager={isManager} onPage={(page) => set({ page })} />
@@ -162,7 +169,12 @@ function ListView({
   isManager: boolean
   onPage: (p: number) => void
 }) {
-  const { data, isPending } = useJobs(slug, { state: state === 'all' ? undefined : state, q, page, per_page: PER_PAGE })
+  const { data, isPending } = useJobs(slug, {
+    state: state === 'all' ? undefined : state,
+    q,
+    page,
+    per_page: PER_PAGE,
+  })
   const items = data?.items ?? []
   const empty = !isPending && items.length === 0
 
@@ -171,7 +183,7 @@ function ListView({
       <EmptyState
         icon={HardHatIcon}
         title="Žádné otevřené zakázky"
-        description={isManager ? 'Zakázka vznikne z přijaté nabídky tlačítkem „Vytvořit zakázku“.' : 'Až vás kancelář přidá na zakázku, uvidíte ji tady.'}
+        description={isManager ? 'Zakázka vznikne z přijaté nabídky tlačítkem „Vytvořit zakázku“.' : 'Až kancelář domluví zakázku, uvidíte ji tady.'}
       />
     )
 
@@ -257,34 +269,36 @@ function CalendarView({
   state,
   q,
   at,
-  span,
   members,
-  onRange,
+  onSelect,
 }: {
   slug: string
   state: string
   q?: string
   at: string
-  span: CalendarSpan
   members: Member[] | undefined
-  onRange: (at: string, span: CalendarSpan) => void
+  onSelect: (day: string) => void
 }) {
-  const { from, to, days } = calendarRange(at, span)
+  const { from, to } = monthGrid(at)
   // „Otevřené“ v kalendáři ukazuje i vyfakturované (proběhlé) zakázky, jen ne zrušené
   const calState = state === 'open' || state === 'all' ? 'planned,in_progress,done,invoiced' : state
-  const { data } = useJobs(slug, { state: calState, q, from, to, per_page: 200 })
+  const { data } = useJobs(slug, {
+    state: calState,
+    q,
+    from,
+    to,
+    per_page: 300,
+  })
   const unscheduled = useJobs(slug, { state: 'planned', q, per_page: 100 }).data?.items.filter((j) => !j.start_on) ?? []
   const jobs = data?.items ?? []
   return (
     <div className="flex flex-col gap-4">
-      <CalendarNav at={at} span={span} onChange={onRange} />
-      <div className="max-md:hidden">
-        <JobTimeline slug={slug} jobs={jobs} days={days} members={members} />
+      <CalendarNav at={at} onChange={onSelect} />
+      <div>
+        <MonthCalendar slug={slug} jobs={jobs} at={at} selected={at} onSelect={onSelect} />
         <Legend />
       </div>
-      <div className="md:hidden">
-        <JobAgenda slug={slug} jobs={jobs} days={days} members={members} />
-      </div>
+      <DayJobs slug={slug} jobs={jobs} day={at} members={members} />
       {unscheduled.length > 0 && (state === 'open' || state === 'planned' || state === 'all') && (
         <section>
           <h3 className="mb-2 text-sm font-semibold">Bez termínu</h3>

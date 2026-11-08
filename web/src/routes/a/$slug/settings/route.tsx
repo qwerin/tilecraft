@@ -1,5 +1,6 @@
-import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
+import { Link, Outlet, createFileRoute, useRouterState } from '@tanstack/react-router'
 import { PageHeader } from '@/components/common'
+import { GuideLink } from '@/components/guides/guide-link'
 import { useFirm } from '@/hooks/use-firm'
 
 export const Route = createFileRoute('/a/$slug/settings')({
@@ -15,10 +16,17 @@ const tabs = [
 // Nastavení firmy rozdělené do podstránek; každá se ukládá sama. Jen vlastník a kancelář (admin).
 function SettingsLayout() {
   const { slug, isManager } = useFirm()
+  const path = useRouterState({ select: (s) => s.location.pathname })
   if (!isManager) return <p className="text-sm text-muted-foreground">Nastavení může měnit jen vlastník nebo kancelář.</p>
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Nastavení" description="Údaje firmy, uživatelé a odesílání e-mailů.">
+      <PageHeader
+        title="Nastavení"
+        description="Údaje firmy, uživatelé a odesílání e-mailů."
+        actions={
+          path.endsWith('/email') ? <GuideLink topic="emaily" section="vlastni" /> : <GuideLink topic="zaciname" section={path.endsWith('/users') ? 'lide' : 'firma'} />
+        }
+      >
         <nav className="-mb-px flex gap-1 overflow-x-auto border-b">
           {tabs.map((t) => (
             <Link

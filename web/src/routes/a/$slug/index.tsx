@@ -289,7 +289,7 @@ function QuotesSection({ slug, quotes }: { slug: string; quotes: QuoteSummary[] 
                   <span className="flex flex-col items-end gap-0.5">
                     <span className="tabular-nums">{money(q.total)}</span>
                     {q.expired ? (
-                      <StatusBadge tone="danger">Propadlá</StatusBadge>
+                      <StatusBadge tone="warning">Propadlá</StatusBadge>
                     ) : expiring ? (
                       <StatusBadge tone="warning">Platí do {fmtDate(q.valid_until)}</StatusBadge>
                     ) : q.state === 'draft' ? (

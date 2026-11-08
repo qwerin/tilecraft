@@ -4,6 +4,8 @@ import { CheckCircle2Icon, ClockIcon, FileDownIcon, FileTextIcon, GlobeIcon, Mai
 import { useState, type ReactNode } from 'react'
 import { publicDecide, publicQuotePdfUrl, usePublicQuote, type PublicQuote } from '@/api/quotes'
 import { EmptyState, FormRow } from '@/components/common'
+import { RoomSketch } from '@/components/doc-editor/room-sketch'
+import { hasSketch } from '@/components/doc-editor/sketch-layout'
 import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -258,6 +260,7 @@ function Measurements({ q }: { q: PublicQuote }) {
         {q.rooms.map((r, i) => (
           <div key={i}>
             <p className="text-sm font-semibold">{r.name}</p>
+            {hasSketch(r) && <RoomSketch room={r} className="mt-1" />}
             <ul className="mt-1 text-sm">
               {(r.surfaces ?? []).map((s, j) => {
                 const area = m.surfaces[i]?.[j] ?? 0

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
+  BookOpenIcon,
   CheckIcon,
   ChevronsUpDownIcon,
   ContactIcon,
@@ -65,6 +66,7 @@ const NAV = {
   settings: { to: '/a/$slug/settings', label: 'Nastavení', icon: SettingsIcon },
   account: { to: '/a/$slug/account', label: 'Můj účet', icon: KeyRoundIcon },
   news: { to: '/a/$slug/news', label: 'Novinky', icon: SparklesIcon },
+  guides: { to: '/a/$slug/guides', label: 'Návody', icon: BookOpenIcon },
 } satisfies Record<string, NavItem>
 
 /** Hlavní akce: nové zaměření = nová nabídka (jen vlastník a kancelář). */
@@ -93,10 +95,10 @@ function useCollapsedSidebar() {
   return [collapsed, toggle] as const
 }
 
-/** Stránky, které smí otevřít parťák: Přehled, seznam a detail zakázky, Novinky a vlastní účet. */
+/** Stránky, které smí otevřít parťák: Přehled, seznam a detail zakázky, Novinky, Návody a vlastní účet. */
 function workerAllowed(path: string, slug: string): boolean {
   const rest = path.slice(`/a/${slug}`.length).replace(/\/$/, '')
-  return rest === '' || rest === '/jobs' || /^\/jobs\/[^/]+$/.test(rest) || rest === '/news' || rest === '/account'
+  return rest === '' || rest === '/jobs' || /^\/jobs\/[^/]+$/.test(rest) || rest === '/news' || rest === '/account' || /^\/guides(\/[^/]+)?$/.test(rest)
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -107,7 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const main: NavItem[] = isManager ? [NAV.home, NAV.quotes, NAV.jobs, NAV.invoices, NAV.customers, NAV.catalog] : [NAV.home, NAV.jobs]
   const firm: NavItem[] = isManager ? [NAV.emails, NAV.settings] : []
-  const extra: NavItem[] = [{ ...NAV.news, badge: news.unread }]
+  const extra: NavItem[] = [{ ...NAV.news, badge: news.unread }, NAV.guides]
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">

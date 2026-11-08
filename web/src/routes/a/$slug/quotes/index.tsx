@@ -7,6 +7,7 @@ import { EmptyState, PageHeader, Pager } from '@/components/common'
 import { QuoteList } from '@/components/quotes/quote-list'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { GuideLink } from '@/components/guides/guide-link'
 import { useFirm } from '@/hooks/use-firm'
 import { cn } from '@/lib/utils'
 
@@ -49,9 +50,12 @@ function QuotesPage() {
       <PageHeader
         title="Nabídky"
         actions={
-          <Button nativeButton={false} render={<Link to="/a/$slug/quotes/new" params={{ slug }} search={{ customer_id: search.customer_id }} />}>
-            <RulerIcon /> Nové zaměření
-          </Button>
+          <>
+            <GuideLink topic="nabidka" />
+            <Button nativeButton={false} render={<Link to="/a/$slug/quotes/new" params={{ slug }} search={{ customer_id: search.customer_id }} />}>
+              <RulerIcon /> Nové zaměření
+            </Button>
+          </>
         }
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-center">

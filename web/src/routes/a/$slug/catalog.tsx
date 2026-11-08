@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { GuideLink } from '@/components/guides/guide-link'
 import { useFirm } from '@/hooks/use-firm'
 import { fromMinor, money, num, toMinor, unitLabel, units } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -38,9 +39,12 @@ function CatalogPage() {
         title="Ceník"
         description={`Ceny za jednotku${vat ? ' bez DPH' : ''}. Položky se zdrojem „ze zaměření“ dostanou v nabídce množství spočítané z místností.`}
         actions={
-          <Button onClick={() => setEditing('work')}>
-            <PlusIcon /> Nová položka
-          </Button>
+          <>
+            <GuideLink topic="cenik" />
+            <Button onClick={() => setEditing('work')}>
+              <PlusIcon /> Nová položka
+            </Button>
+          </>
         }
       >
         <div className="flex flex-wrap items-center gap-3">

@@ -23,9 +23,11 @@ import { Route as ASlugAccountRouteImport } from './routes/a/$slug/account'
 import { Route as ASlugCatalogRouteImport } from './routes/a/$slug/catalog'
 import { Route as ASlugCustomersRouteImport } from './routes/a/$slug/customers'
 import { Route as ASlugEmailsRouteImport } from './routes/a/$slug/emails'
+import { Route as ASlugGuidesRouteImport } from './routes/a/$slug/guides'
 import { Route as ASlugNewsRouteImport } from './routes/a/$slug/news'
 import { Route as ASlugSettingsRouteRouteImport } from './routes/a/$slug/settings/route'
 import { Route as ASlugCustomersIdRouteImport } from './routes/a/$slug/customers_.$id'
+import { Route as ASlugGuidesTopicRouteImport } from './routes/a/$slug/guides_.$topic'
 import { Route as ASlugInvoicesIndexRouteImport } from './routes/a/$slug/invoices/index'
 import { Route as ASlugInvoicesIdRouteImport } from './routes/a/$slug/invoices/$id'
 import { Route as ASlugInvoicesNewRouteImport } from './routes/a/$slug/invoices/new'
@@ -111,6 +113,11 @@ const ASlugEmailsRoute = ASlugEmailsRouteImport.update({
   path: '/emails',
   getParentRoute: () => ASlugRouteRoute,
 } as any)
+const ASlugGuidesRoute = ASlugGuidesRouteImport.update({
+  id: '/guides',
+  path: '/guides',
+  getParentRoute: () => ASlugRouteRoute,
+} as any)
 const ASlugNewsRoute = ASlugNewsRouteImport.update({
   id: '/news',
   path: '/news',
@@ -124,6 +131,11 @@ const ASlugSettingsRouteRoute = ASlugSettingsRouteRouteImport.update({
 const ASlugCustomersIdRoute = ASlugCustomersIdRouteImport.update({
   id: '/customers_/$id',
   path: '/customers/$id',
+  getParentRoute: () => ASlugRouteRoute,
+} as any)
+const ASlugGuidesTopicRoute = ASlugGuidesTopicRouteImport.update({
+  id: '/guides_/$topic',
+  path: '/guides/$topic',
   getParentRoute: () => ASlugRouteRoute,
 } as any)
 const ASlugInvoicesIndexRoute = ASlugInvoicesIndexRouteImport.update({
@@ -212,9 +224,11 @@ export interface FileRoutesByFullPath {
   '/a/$slug/catalog': typeof ASlugCatalogRoute
   '/a/$slug/customers': typeof ASlugCustomersRoute
   '/a/$slug/emails': typeof ASlugEmailsRoute
+  '/a/$slug/guides': typeof ASlugGuidesRoute
   '/a/$slug/news': typeof ASlugNewsRoute
   '/a/$slug/': typeof ASlugIndexRoute
   '/a/$slug/customers/$id': typeof ASlugCustomersIdRoute
+  '/a/$slug/guides/$topic': typeof ASlugGuidesTopicRoute
   '/a/$slug/invoices/$id': typeof ASlugInvoicesIdRoute
   '/a/$slug/invoices/new': typeof ASlugInvoicesNewRoute
   '/a/$slug/jobs/$id': typeof ASlugJobsIdRoute
@@ -243,9 +257,11 @@ export interface FileRoutesByTo {
   '/a/$slug/catalog': typeof ASlugCatalogRoute
   '/a/$slug/customers': typeof ASlugCustomersRoute
   '/a/$slug/emails': typeof ASlugEmailsRoute
+  '/a/$slug/guides': typeof ASlugGuidesRoute
   '/a/$slug/news': typeof ASlugNewsRoute
   '/a/$slug': typeof ASlugIndexRoute
   '/a/$slug/customers/$id': typeof ASlugCustomersIdRoute
+  '/a/$slug/guides/$topic': typeof ASlugGuidesTopicRoute
   '/a/$slug/invoices/$id': typeof ASlugInvoicesIdRoute
   '/a/$slug/invoices/new': typeof ASlugInvoicesNewRoute
   '/a/$slug/jobs/$id': typeof ASlugJobsIdRoute
@@ -277,9 +293,11 @@ export interface FileRoutesById {
   '/a/$slug/catalog': typeof ASlugCatalogRoute
   '/a/$slug/customers': typeof ASlugCustomersRoute
   '/a/$slug/emails': typeof ASlugEmailsRoute
+  '/a/$slug/guides': typeof ASlugGuidesRoute
   '/a/$slug/news': typeof ASlugNewsRoute
   '/a/$slug/': typeof ASlugIndexRoute
   '/a/$slug/customers_/$id': typeof ASlugCustomersIdRoute
+  '/a/$slug/guides_/$topic': typeof ASlugGuidesTopicRoute
   '/a/$slug/invoices/$id': typeof ASlugInvoicesIdRoute
   '/a/$slug/invoices/new': typeof ASlugInvoicesNewRoute
   '/a/$slug/jobs/$id': typeof ASlugJobsIdRoute
@@ -312,9 +330,11 @@ export interface FileRouteTypes {
     | '/a/$slug/catalog'
     | '/a/$slug/customers'
     | '/a/$slug/emails'
+    | '/a/$slug/guides'
     | '/a/$slug/news'
     | '/a/$slug/'
     | '/a/$slug/customers/$id'
+    | '/a/$slug/guides/$topic'
     | '/a/$slug/invoices/$id'
     | '/a/$slug/invoices/new'
     | '/a/$slug/jobs/$id'
@@ -343,9 +363,11 @@ export interface FileRouteTypes {
     | '/a/$slug/catalog'
     | '/a/$slug/customers'
     | '/a/$slug/emails'
+    | '/a/$slug/guides'
     | '/a/$slug/news'
     | '/a/$slug'
     | '/a/$slug/customers/$id'
+    | '/a/$slug/guides/$topic'
     | '/a/$slug/invoices/$id'
     | '/a/$slug/invoices/new'
     | '/a/$slug/jobs/$id'
@@ -376,9 +398,11 @@ export interface FileRouteTypes {
     | '/a/$slug/catalog'
     | '/a/$slug/customers'
     | '/a/$slug/emails'
+    | '/a/$slug/guides'
     | '/a/$slug/news'
     | '/a/$slug/'
     | '/a/$slug/customers_/$id'
+    | '/a/$slug/guides_/$topic'
     | '/a/$slug/invoices/$id'
     | '/a/$slug/invoices/new'
     | '/a/$slug/jobs/$id'
@@ -507,6 +531,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ASlugEmailsRouteImport
       parentRoute: typeof ASlugRouteRoute
     }
+    '/a/$slug/guides': {
+      id: '/a/$slug/guides'
+      path: '/guides'
+      fullPath: '/a/$slug/guides'
+      preLoaderRoute: typeof ASlugGuidesRouteImport
+      parentRoute: typeof ASlugRouteRoute
+    }
     '/a/$slug/news': {
       id: '/a/$slug/news'
       path: '/news'
@@ -526,6 +557,13 @@ declare module '@tanstack/react-router' {
       path: '/customers/$id'
       fullPath: '/a/$slug/customers/$id'
       preLoaderRoute: typeof ASlugCustomersIdRouteImport
+      parentRoute: typeof ASlugRouteRoute
+    }
+    '/a/$slug/guides_/$topic': {
+      id: '/a/$slug/guides_/$topic'
+      path: '/guides/$topic'
+      fullPath: '/a/$slug/guides/$topic'
+      preLoaderRoute: typeof ASlugGuidesTopicRouteImport
       parentRoute: typeof ASlugRouteRoute
     }
     '/a/$slug/invoices/': {
@@ -652,9 +690,11 @@ interface ASlugRouteRouteChildren {
   ASlugCatalogRoute: typeof ASlugCatalogRoute
   ASlugCustomersRoute: typeof ASlugCustomersRoute
   ASlugEmailsRoute: typeof ASlugEmailsRoute
+  ASlugGuidesRoute: typeof ASlugGuidesRoute
   ASlugNewsRoute: typeof ASlugNewsRoute
   ASlugIndexRoute: typeof ASlugIndexRoute
   ASlugCustomersIdRoute: typeof ASlugCustomersIdRoute
+  ASlugGuidesTopicRoute: typeof ASlugGuidesTopicRoute
   ASlugInvoicesIdRoute: typeof ASlugInvoicesIdRoute
   ASlugInvoicesNewRoute: typeof ASlugInvoicesNewRoute
   ASlugJobsIdRoute: typeof ASlugJobsIdRoute
@@ -671,9 +711,11 @@ const ASlugRouteRouteChildren: ASlugRouteRouteChildren = {
   ASlugCatalogRoute: ASlugCatalogRoute,
   ASlugCustomersRoute: ASlugCustomersRoute,
   ASlugEmailsRoute: ASlugEmailsRoute,
+  ASlugGuidesRoute: ASlugGuidesRoute,
   ASlugNewsRoute: ASlugNewsRoute,
   ASlugIndexRoute: ASlugIndexRoute,
   ASlugCustomersIdRoute: ASlugCustomersIdRoute,
+  ASlugGuidesTopicRoute: ASlugGuidesTopicRoute,
   ASlugInvoicesIdRoute: ASlugInvoicesIdRoute,
   ASlugInvoicesNewRoute: ASlugInvoicesNewRoute,
   ASlugJobsIdRoute: ASlugJobsIdRoute,

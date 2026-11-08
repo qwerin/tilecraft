@@ -1,5 +1,5 @@
-import { CopyIcon, EllipsisVerticalIcon, MinusIcon, PlusIcon, SquareDashedIcon, Trash2Icon } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { ChevronDownIcon, CopyIcon, EllipsisVerticalIcon, MinusIcon, PlusIcon, SquareDashedIcon, Trash2Icon } from 'lucide-react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,7 @@ import { num, parseMeters } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { duplicateRoomNames, kindLabels, newSurface, SURFACE_NAMES } from './model'
 import { NumberInput } from './number-input'
+import { RoomSketch } from './room-sketch'
 import { formatDecimal } from './numbers'
 
 export interface RoomsEditorProps {
@@ -27,6 +28,25 @@ const DEDUCTIONS: Deduction[] = [
 ]
 const kinds: SurfaceKind[] = ['floor', 'wall', 'length', 'piece']
 const wall = (width: number, height: number, count: number): Surface => ({ name: 'Stěny', kind: 'wall', width, height, count })
+
+const SKETCH_KEY = 'tc-room-sketch'
+/** Náčrt otevřený? Zapamatovaná volba, jinak na počítači ano, na telefonu ne. */
+function sketchOpenDefault(): boolean {
+  try {
+    const v = localStorage.getItem(SKETCH_KEY)
+    if (v === '1' || v === '0') return v === '1'
+  } catch {
+    // localStorage nedostupný (privátní režim)
+  }
+  return typeof window !== 'undefined' && !!window.matchMedia?.('(min-width: 768px)').matches
+}
+function rememberSketchOpen(open: boolean) {
+  try {
+    localStorage.setItem(SKETCH_KEY, open ? '1' : '0')
+  } catch {
+    // localStorage nedostupný (privátní režim)
+  }
+}
 
 /** Zaměření: místnosti → plochy (podlaha, stěna, délka, kusy) s odpočty; živě spočítané plochy a souhrny. */
 export function RoomsEditor({ value, onChange, readOnly, className }: RoomsEditorProps) {
@@ -126,6 +146,19 @@ function RoomCard({
   onDuplicate: () => void
 }) {
   const surfaces = room.surfaces ?? []
+  const [sketchOpen, setSketchOpen] = useState(sketchOpenDefault)
+  const [active, setActive] = useState<number | null>(null)
+  const rows = useRef<(HTMLDivElement | null)[]>([])
+  /** Klik v náčrtu: odroluje k ploše a zaměří její první rozměr. */
+  const selectSurface = (i: number) => {
+    const el = rows.current[i]
+    if (!el) return
+    const input =
+      el.querySelector<HTMLInputElement>('input[inputmode="decimal"]:not(:disabled)') ?? el.querySelector<HTMLInputElement>('input:not(:disabled)')
+    input?.focus({ preventScroll: true })
+    setActive(i)
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
   const setSurface = (i: number, s: Surface) => onChange({ ...room, surfaces: surfaces.map((x, j) => (j === i ? s : x)) })
   const add = (...s: Surface[]) => onChange({ ...room, surfaces: [...surfaces, ...s] })
   return (
@@ -161,20 +194,49 @@ function RoomCard({
         )}
       </div>
       {duplicate && !readOnly && <p className="px-3 pt-2 text-xs text-destructive">Každá místnost musí mít vlastní název (řádky nabídky se na něj odkazují).</p>}
+      {surfaces.length > 0 && (
+        <div className="border-b">
+          <button
+            type="button"
+            onClick={() => {
+              setSketchOpen(!sketchOpen)
+              rememberSketchOpen(!sketchOpen)
+            }}
+            aria-expanded={sketchOpen}
+            className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:py-1.5"
+          >
+            <ChevronDownIcon className={cn('size-3.5 transition-transform', !sketchOpen && '-rotate-90')} />
+            Náčrt
+            {!sketchOpen && <span className="font-normal">— zobrazit</span>}
+          </button>
+          {sketchOpen && <RoomSketch room={room} highlight={active} onSelectSurface={selectSurface} className="px-3 pb-3" />}
+        </div>
+      )}
       <div className="divide-y">
         {surfaces.map((s, i) => (
-          <SurfaceRow
+          <div
             key={i}
-            surface={s}
-            readOnly={readOnly}
-            onChange={(ns) => setSurface(i, ns)}
-            onRemove={() => onChange({ ...room, surfaces: surfaces.filter((_, j) => j !== i) })}
-            onAddWalls={(h) => {
-              const w = round2(s.width)
-              const d = round2(s.height)
-              add(...(w === d ? [wall(w, h, 4)] : [wall(w, h, 2), wall(d, h, 2)]))
+            ref={(el) => {
+              rows.current[i] = el
             }}
-          />
+            onFocus={() => setActive(i)}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setActive((a) => (a === i ? null : a))
+            }}
+            className={cn('scroll-mt-20 transition-colors', active === i && sketchOpen && 'bg-primary/5')}
+          >
+            <SurfaceRow
+              surface={s}
+              readOnly={readOnly}
+              onChange={(ns) => setSurface(i, ns)}
+              onRemove={() => onChange({ ...room, surfaces: surfaces.filter((_, j) => j !== i) })}
+              onAddWalls={(h) => {
+                const w = round2(s.width)
+                const d = round2(s.height)
+                add(...(w === d ? [wall(w, h, 4)] : [wall(w, h, 2), wall(d, h, 2)]))
+              }}
+            />
+          </div>
         ))}
         {surfaces.length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground">Žádné plochy.</p>}
       </div>
@@ -266,7 +328,8 @@ function SurfaceRow({
               variant="ghost"
               size="sm"
               className="text-muted-foreground"
-              onClick={() => onChange(manual ? { ...s, area: undefined } : { ...s, area: area || round2(s.width * s.height * (s.count || 1)) })}
+              // hrubá plocha: odpočty se od ručně zadané plochy odečítají dál (jinak by se odečetly dvakrát)
+              onClick={() => onChange(manual ? { ...s, area: undefined } : { ...s, area: round2(s.width * s.height * (s.count || 1)) })}
             >
               <SquareDashedIcon /> {manual ? 'Zadat rozměry' : 'Zadat plochu'}
             </Button>
@@ -291,9 +354,16 @@ function SurfaceRow({
           </>
         )}
         {isArea && manual && (
-          <Dim label="Plocha (nepravidelný tvar)" className="w-40">
-            <NumberInput value={s.area ?? null} onChange={(v) => onChange({ ...s, area: v ?? 0 })} suffix="m²" disabled={readOnly} />
-          </Dim>
+          <>
+            <Dim label="Plocha (nepravidelný tvar)" className="w-40">
+              <NumberInput value={s.area ?? null} onChange={(v) => onChange({ ...s, area: v ?? 0 })} suffix="m²" disabled={readOnly} />
+            </Dim>
+            {!readOnly && (
+              <span className="self-end pb-3 text-xs text-muted-foreground md:pb-2">
+                {deds.length > 0 ? 'Celá plocha bez odpočtů — odpočty níže se od ní odečtou.' : 'Celá plocha; okna a dveře odečtěte níže.'}
+              </span>
+            )}
+          </>
         )}
         {kind === 'length' && (
           <>
@@ -333,7 +403,10 @@ function SurfaceRow({
             Zrušit
           </Button>
           <p className="w-full text-xs text-muted-foreground">
-            Přidá stěny {num(s.width)} a {num(s.height)} m, každou 2×. Okna, dveře a vanu pak odečtěte u stěn.
+            {round2(s.width) === round2(s.height)
+              ? `Přidá 4 stěny ${num(round2(s.width))} m.`
+              : `Přidá stěny ${num(round2(s.width))} a ${num(round2(s.height))} m, každou 2×.`}{' '}
+            Okna, dveře a vanu pak odečtěte u stěn.
           </p>
         </div>
       )}

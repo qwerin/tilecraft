@@ -2,6 +2,8 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import type { Job, JobLine } from '@/api/jobs'
 import { Panel, StatusBadge } from '@/components/common'
+import { RoomSketch } from '@/components/doc-editor/room-sketch'
+import { hasSketch } from '@/components/doc-editor/sketch-layout'
 import { money, num, qty } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -131,6 +133,7 @@ function Totals({ job }: { job: Job }) {
 export function JobMeasurements({ job }: { job: Job }) {
   const m = job.measurements
   if (m.rooms.length === 0) return null
+  const sketched = (job.rooms ?? []).filter(hasSketch)
   const cols = (
     [
       { key: 'floor', label: 'Podlahy', unit: 'm2' },
@@ -178,6 +181,21 @@ export function JobMeasurements({ job }: { job: Job }) {
           </tbody>
         </table>
       </div>
+      {sketched.length > 0 && (
+        <details open className="group mt-3 border-t pt-2">
+          <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground select-none hover:text-foreground">
+            Náčrt <span className="font-normal group-open:hidden">— zobrazit</span>
+          </summary>
+          <div className="mt-2 grid gap-4 lg:grid-cols-2">
+            {sketched.map((r, i) => (
+              <div key={i} className="min-w-0">
+                {sketched.length > 1 && <p className="mb-1 text-sm font-semibold">{r.name}</p>}
+                <RoomSketch room={r} />
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </Panel>
   )
 }

@@ -12,14 +12,14 @@ export function JobStateBadge({ state, className }: { state: JobState; className
 }
 
 const stepLabels: Record<JobState, string> = {
-  planned: 'Domluveno',
-  in_progress: 'Realizace',
-  done: 'Hotovo',
-  invoiced: 'Vyfakturováno',
-  cancelled: 'Zrušeno',
+  planned: 'Domluvená',
+  in_progress: 'Probíhá',
+  done: 'Hotová',
+  invoiced: 'Vyfakturovaná',
+  cancelled: 'Zrušená',
 }
 
-/** Průběh zakázky: Domluveno → Realizace → Hotovo → Vyfakturováno. */
+/** Průběh zakázky: Domluvená → Probíhá → Hotová → Vyfakturovaná. */
 export function JobSteps({ state }: { state: JobState }) {
   const cur = jobFlow.indexOf(state)
   return (

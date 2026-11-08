@@ -6,6 +6,7 @@ import { CardList, DataTable, EmptyRow, EmptyState, PageHeader, Pager, cardClass
 import { CustomerFormDialog } from '@/components/customers/customer-form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { GuideLink } from '@/components/guides/guide-link'
 import { useFirm } from '@/hooks/use-firm'
 
 // Zákazníci (SPEC §3): hledání, založení; detail na /customers/$id.
@@ -36,9 +37,12 @@ function CustomersPage() {
       <PageHeader
         title="Zákazníci"
         actions={
-          <Button onClick={() => setCreating(true)}>
-            <PlusIcon /> Nový zákazník
-          </Button>
+          <>
+            <GuideLink topic="cenik" section="zakaznici" />
+            <Button onClick={() => setCreating(true)}>
+              <PlusIcon /> Nový zákazník
+            </Button>
+          </>
         }
       >
         <div className="relative max-w-sm">
