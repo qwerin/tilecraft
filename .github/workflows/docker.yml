@@ -16,7 +16,7 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && 'svobo' || 'ubuntu-latest' }} # push → own runner; pull requests (public repo) stay on GitHub's runners
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
