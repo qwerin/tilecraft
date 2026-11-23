@@ -267,12 +267,11 @@ func (s *server) revisedQuoteInput(ctx context.Context, tx *gorm.DB, j *model.Jo
 		title = string(r[:200-len([]rune(revisionSuffix))])
 	}
 	terms, show := acc.QuoteTerms, false
-	intro := "Upravená cenová nabídka podle skutečně provedených prací. Práce a náklady navíc jsou označené „navíc“."
+	// the "update of quote NA…" note is printed by the public page and the PDF (Revises), so the intro stays the firm's own
+	intro := acc.QuoteIntro
 	if j.QuoteID != nil {
 		if o, err := s.loadQuote(ctx, tx, *j.QuoteID); err == nil {
-			terms, show = o.Terms, o.ShowMeasure
-			intro = fmt.Sprintf("Upravená cenová nabídka podle skutečně provedených prací — aktualizace nabídky %s (%s). "+
-				"Práce a náklady navíc jsou označené „navíc“.", o.Number, money(o.Total))
+			terms, show, intro = o.Terms, o.ShowMeasure, o.Intro
 		}
 	}
 	vat := j.VatRate

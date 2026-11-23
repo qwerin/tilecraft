@@ -5,7 +5,7 @@ import { CheckIcon, CopyIcon, MessageCircleIcon, Share2Icon } from 'lucide-react
 import { toast } from 'sonner'
 import { useEmailDelivery } from '@/api/emails'
 import { useFirmMutation } from '@/api/queries'
-import { invoiceApi, invoiceTitle, type Invoice } from '@/api/invoices'
+import { invoiceApi, type Invoice } from '@/api/invoices'
 import { FormRow } from '@/components/common'
 import { DateInput } from '@/components/date-input'
 import { Button } from '@/components/ui/button'
@@ -101,7 +101,7 @@ export function InvoiceShareDialog({ inv, firm, open, onOpenChange }: { inv: Inv
         <DialogHeader>
           <DialogTitle>Odkaz pro zákazníka</DialogTitle>
           <DialogDescription>
-            Na odkazu zákazník uvidí {invoiceTitle(inv).toLowerCase()} {inv.number}, stav úhrady, QR Platbu a stáhne si PDF. Nic jiného z firmy neuvidí.
+            Na odkazu zákazník uvidí {inv.kind === 'advance' ? 'zálohovou fakturu' : 'fakturu'} {inv.number}, stav úhrady, QR Platbu a stáhne si PDF. Nic jiného z firmy neuvidí.
           </DialogDescription>
         </DialogHeader>
         <FormRow label="Odkaz" htmlFor="inv-public-link">

@@ -34,7 +34,10 @@ const revisionLabels = {
 export const jobChanged = (job: Job) => job.extras.count > 0 || (!!job.quote && job.totals.total !== job.quote.totals.total)
 
 export function jobStages(job: Job, isManager: boolean): Stage[] {
-  const photos = job.attachments.length
+  const photosOf = (...cats: string[]) => job.attachments.filter((a) => cats.includes(a.category)).length
+  const before = photosOf('before', 'plan')
+  const during = photosOf('during')
+  const after = photosOf('after')
   const rooms = job.rooms.length
   const cur = stageOf[job.state]
   const rev = job.revisions.at(-1)
@@ -54,7 +57,7 @@ export function jobStages(job: Job, isManager: boolean): Stage[] {
   }
   lead.push(
     { label: job.start_on ? `Termín od ${fmtDate(job.start_on)}` : 'Termín', mark: job.start_on ? 'done' : 'todo' },
-    { label: photos ? `Fotky a soubory: ${photos}` : 'Fotky před zahájením', mark: photos ? 'done' : cur > 0 ? 'skip' : 'todo', href: '#fotky' },
+    { label: before ? `Fotky před a plán: ${before}` : 'Fotky před zahájením', mark: before ? 'done' : cur > 0 ? 'skip' : 'todo', href: '#fotky' },
   )
 
   const extrasLabel = job.extras.count
@@ -64,6 +67,7 @@ export function jobStages(job: Job, isManager: boolean): Stage[] {
     { label: 'Práce zahájena', mark: cur >= 1 ? 'done' : 'todo' },
     { label: extrasLabel, mark: job.extras.count ? 'done' : 'skip', href: '#polozky' },
   ]
+  build.push({ label: during ? `Fotky během: ${during}` : 'Fotky během zhotovení', mark: during ? 'done' : 'skip', href: '#fotky' })
   if (isManager && job.extras.unpriced > 0) build.push({ label: `K nacenění: ${job.extras.unpriced}`, mark: 'warn', href: '#navic' })
   build.push({ label: job.notes.length ? `Deník: ${plural(job.notes.length, 'zápis', 'zápisy', 'zápisů')}` : 'Deník', mark: job.notes.length ? 'done' : 'skip', href: '#denik' })
 
@@ -78,7 +82,7 @@ export function jobStages(job: Job, isManager: boolean): Stage[] {
           : { label: 'Upravená nabídka — beze změn proti nabídce není potřeba', mark: 'skip' },
     )
   }
-  finish.push({ label: 'Fotky hotové zakázky', mark: photos ? (cur >= 2 ? 'done' : 'skip') : 'todo', href: '#fotky' })
+  finish.push({ label: after ? `Fotky hotové zakázky: ${after}` : 'Fotky hotové zakázky', mark: after ? 'done' : 'todo', href: '#fotky' })
 
   const bill: CheckItem[] = []
   if (isManager) {

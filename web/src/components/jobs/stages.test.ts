@@ -74,4 +74,12 @@ describe('etapy zakázky', () => {
     const finish = jobStages(job({ extras: { count: 1, unpriced: 0, amount: 10000 }, revisions: [rev] }), true)[2]
     expect(finish.items.find((i) => i.label.startsWith('Upravená nabídka NA26002'))?.mark).toBe('done')
   })
+
+  it('fotky se počítají do fáze podle kategorie', () => {
+    const att = (category: string) => ({ id: 1, category }) as Job['attachments'][number]
+    const [lead, build, finish] = jobStages(job({ attachments: [att('during'), att('during'), att('plan')] }), true)
+    expect(lead.items.find((i) => i.label.startsWith('Fotky před'))?.label).toBe('Fotky před a plán: 1')
+    expect(build.items.find((i) => i.label.startsWith('Fotky'))?.label).toBe('Fotky během: 2')
+    expect(finish.items.find((i) => i.label.startsWith('Fotky'))?.mark).toBe('todo')
+  })
 })
