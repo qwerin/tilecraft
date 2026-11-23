@@ -28,6 +28,8 @@ type CatalogInput struct {
 	Discount      float64 `json:"discount,omitempty" minimum:"0" maximum:"100" doc:"Default discount in % (supplier discount on material)"`
 	Measure       string  `json:"measure,omitempty" enum:",floor,wall,area,perimeter,length,piece" doc:"Quantity from the measurements: floor/wall/area (m²), perimeter (of floors, bm), length (linear elements, bm), piece; empty = entered by hand"`
 	Waste         float64 `json:"waste,omitempty" minimum:"0" maximum:"100" doc:"% added to a measured quantity (tile cutting waste)"`
+	TierPrices    []int64 `json:"tier_prices,omitempty" maxItems:"3" doc:"Prices of the 3 tile-size tiers in haléře (small, standard, large format; labels in the firm's settings), used by lines with tier 1–3; empty = one price only"`
+	Quick         bool    `json:"quick,omitempty" doc:"Quick pick: offered as a one-tap button (Doplňkové práce) in the lines editor"`
 	Note          string  `json:"note,omitempty" maxLength:"2000"`
 	Active        bool    `json:"active"`
 	Position      int     `json:"position,omitempty"`
@@ -41,7 +43,8 @@ type CatalogItem struct {
 
 func toCatalogItem(c *model.CatalogItem) CatalogItem {
 	return CatalogItem{ID: c.ID, CatalogInput: CatalogInput{Kind: c.Kind, Code: c.Code, Name: c.Name, Unit: c.Unit, Price: c.Price,
-		PurchasePrice: c.PurchasePrice, Discount: c.Discount, Measure: c.Measure, Waste: c.Waste, Note: c.Note, Active: c.Active, Position: c.Position}}
+		PurchasePrice: c.PurchasePrice, Discount: c.Discount, Measure: c.Measure, Waste: c.Waste, TierPrices: c.TierPrices, Quick: c.Quick,
+		Note: c.Note, Active: c.Active, Position: c.Position}}
 }
 
 func (b *CatalogInput) apply(c *model.CatalogItem) error {
@@ -50,6 +53,18 @@ func (b *CatalogInput) apply(c *model.CatalogItem) error {
 	}
 	if b.Measure != "" && !slices.Contains(calc.Measures, b.Measure) {
 		return invalid("measure", "unknown measure")
+	}
+	if n := len(b.TierPrices); n != 0 && n != model.Tiers {
+		return invalid("tier_prices", "3 prices (small, standard, large format) or none")
+	}
+	for _, p := range b.TierPrices {
+		if p < 0 {
+			return invalid("tier_prices", "prices must not be negative")
+		}
+	}
+	c.TierPrices, c.Quick = nil, b.Quick
+	if len(b.TierPrices) > 0 {
+		c.TierPrices = slices.Clone(b.TierPrices)
 	}
 	c.Kind, c.Code, c.Name, c.Unit = b.Kind, strings.TrimSpace(b.Code), strings.TrimSpace(b.Name), b.Unit
 	c.Price, c.PurchasePrice, c.Discount, c.Measure, c.Waste = b.Price, b.PurchasePrice, b.Discount, b.Measure, b.Waste
@@ -161,15 +176,21 @@ var defaultCatalog = []model.CatalogItem{
 	{Kind: model.SectionWork, Name: "Bourání, stržení původní krytiny, příprava podkladu", Unit: "hod", Price: 40000},
 	{Kind: model.SectionWork, Name: "Penetrace / adhezní můstek", Unit: "m2", Price: 4000, Measure: calc.MeasureArea},
 	{Kind: model.SectionWork, Name: "Montáž pancéřového pletiva", Unit: "m2", Price: 15000, Measure: calc.MeasureFloor},
-	{Kind: model.SectionWork, Name: "Hydroizolační stěrka (2 vrstvy)", Unit: "m2", Price: 12000},
+	{Kind: model.SectionWork, Name: "Hydroizolační stěrka (2 vrstvy)", Unit: "m2", Price: 12000, Quick: true},
 	{Kind: model.SectionWork, Name: "Montáž hydroizolační pásky", Unit: "bm", Price: 6000, Measure: calc.MeasurePerimeter},
-	{Kind: model.SectionWork, Name: "Montáž dlažby, spárování epoxidem, silikon", Unit: "m2", Price: 65000, Measure: calc.MeasureFloor},
-	{Kind: model.SectionWork, Name: "Montáž obkladu, spárování, silikon", Unit: "m2", Price: 65000, Measure: calc.MeasureWall},
+	{Kind: model.SectionWork, Name: "Montáž dlažby, spárování epoxidem, silikon", Unit: "m2", Price: 65000, Measure: calc.MeasureFloor,
+		TierPrices: []int64{75000, 65000, 85000}},
+	{Kind: model.SectionWork, Name: "Montáž obkladu, spárování, silikon", Unit: "m2", Price: 65000, Measure: calc.MeasureWall,
+		TierPrices: []int64{75000, 65000, 85000}},
 	{Kind: model.SectionWork, Name: "Atypické prvky (tvar, sparování epoxidem)", Unit: "m2", Price: 100000},
 	{Kind: model.SectionWork, Name: "Montáž platformy pod vaničku", Unit: "kpl", Price: 120000},
 	{Kind: model.SectionWork, Name: "Montáž ukončovací lišty", Unit: "bm", Price: 9000, Measure: calc.MeasureLength},
-	{Kind: model.SectionWork, Name: "Vykružování otvorů", Unit: "ks", Price: 8500, Measure: calc.MeasurePiece},
+	{Kind: model.SectionWork, Name: "Vykružování otvorů", Unit: "ks", Price: 8500, Measure: calc.MeasurePiece, Quick: true},
 	{Kind: model.SectionWork, Name: "Montáž akrylátu", Unit: "bm", Price: 3000},
+	{Kind: model.SectionWork, Name: "Kamenický roh (broušení hrany 45°)", Unit: "bm", Price: 35000, Quick: true},
+	{Kind: model.SectionWork, Name: "Nika (obklad výklenku)", Unit: "ks", Price: 180000, Quick: true},
+	{Kind: model.SectionWork, Name: "Betonování, vyrovnání podlahy", Unit: "m2", Price: 25000, Measure: calc.MeasureFloor, Quick: true},
+	{Kind: model.SectionWork, Name: "Spárování (samostatně)", Unit: "m2", Price: 15000, Measure: calc.MeasureArea, Quick: true},
 	{Kind: model.SectionMaterial, Name: "Adhezní můstek 1 l", Unit: "ks", Price: 30000},
 	{Kind: model.SectionMaterial, Name: "Pancéřové pletivo Codex CX 410", Unit: "m2", Price: 27000, Measure: calc.MeasureFloor},
 	{Kind: model.SectionMaterial, Name: "Hydroizolační stěrka Codex Hydrostop", Unit: "m2", Price: 34000},
@@ -192,6 +213,7 @@ func seedCatalog(tx *gorm.DB, accountID uint) error {
 	items := slices.Clone(defaultCatalog)
 	for i := range items {
 		items[i].AccountID, items[i].Active, items[i].Position = accountID, true, i
+		items[i].TierPrices = slices.Clone(items[i].TierPrices)
 	}
 	return tx.Create(&items).Error
 }

@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/qwerin/tilecraft/internal/auth"
 	"github.com/qwerin/tilecraft/internal/calc"
 	"github.com/qwerin/tilecraft/internal/model"
 )
@@ -21,7 +22,8 @@ type LineInput struct {
 	Name             string   `json:"name,omitempty" maxLength:"300" doc:"Default = the catalog item's name"`
 	Unit             string   `json:"unit,omitempty" maxLength:"10" doc:"m2, bm, ks, hod, kpl, bal, kg, l, km; default = the catalog item's unit"`
 	Quantity         *float64 `json:"quantity,omitempty" minimum:"0" doc:"Ignored when measure is set (computed from the measurements)"`
-	UnitPrice        *int64   `json:"unit_price,omitempty" minimum:"0" doc:"Haléře per unit (1 Kč = 100); default = the catalog price"`
+	UnitPrice        *int64   `json:"unit_price,omitempty" minimum:"0" doc:"Haléře per unit (1 Kč = 100); default = the catalog price (of the tier, when the item has tier prices)"`
+	Tier             int      `json:"tier,omitempty" minimum:"0" maximum:"3" doc:"Tile-size tier 1–3 (small, standard, large format; labels in the firm's settings), 0 = none. For a catalog item with tier_prices the default unit_price is the tier's price"`
 	Discount         *float64 `json:"discount,omitempty" minimum:"0" maximum:"100" doc:"% off this line; default = the catalog discount"`
 	CustomerSupplied bool     `json:"customer_supplied,omitempty" doc:"Material supplied by the customer: listed, costs 0"`
 	Measure          *string  `json:"measure,omitempty" enum:",floor,wall,area,perimeter,length,piece" doc:"Quantity from the measurements; default = the catalog item's measure, \"\" = manual quantity"`
@@ -44,6 +46,8 @@ type Line struct {
 	Measure          string   `json:"measure"`
 	Rooms            []string `json:"rooms" nullable:"false"`
 	Waste            float64  `json:"waste"`
+	Tier             int      `json:"tier" doc:"Tile-size tier 1–3, 0 = none"`
+	TierLabel        string   `json:"tier_label" doc:"Label of the tier (\"\" = none), printed on the line"`
 	Note             string   `json:"note"`
 	Amount           int64    `json:"amount" doc:"haléře without VAT, rounded to whole crowns"`
 }
@@ -55,7 +59,7 @@ func toLine(id uint, l *model.LineData) Line {
 	}
 	return Line{ID: id, Section: l.Section, CatalogItemID: l.CatalogItemID, Name: l.Name, Unit: l.Unit, Quantity: l.Quantity,
 		UnitPrice: l.UnitPrice, Discount: l.Discount, CustomerSupplied: l.CustomerSupplied, Measure: l.Measure, Rooms: rooms,
-		Waste: l.Waste, Note: l.Note, Amount: l.Amount()}
+		Waste: l.Waste, Tier: l.Tier, TierLabel: l.TierLabel, Note: l.Note, Amount: l.Amount()}
 }
 
 // RoomSummary is a room's measured totals.
@@ -143,6 +147,10 @@ func buildLines(ctx context.Context, tx *gorm.DB, rooms []calc.Room, in []LineIn
 			items[rows[i].ID] = &rows[i]
 		}
 	}
+	var settings model.AccountSettings // tier labels
+	if a := auth.AccountFrom(ctx); a != nil {
+		settings = a.AccountSettings
+	}
 	roomNames := map[string]bool{}
 	for _, r := range rooms {
 		roomNames[r.Name] = true
@@ -151,7 +159,10 @@ func buildLines(ctx context.Context, tx *gorm.DB, rooms []calc.Room, in []LineIn
 	for i, l := range in {
 		loc := fmt.Sprintf("lines[%d]", i)
 		d := model.LineData{Section: l.Section, Name: strings.TrimSpace(l.Name), Unit: strings.TrimSpace(l.Unit),
-			CustomerSupplied: l.CustomerSupplied, Note: l.Note, Position: i}
+			CustomerSupplied: l.CustomerSupplied, Tier: l.Tier, TierLabel: settings.TierLabel(l.Tier), Note: l.Note, Position: i}
+		if l.Tier < 0 || l.Tier > model.Tiers {
+			return nil, invalid(loc+".tier", "0–3")
+		}
 		if l.CatalogItemID != nil {
 			c, ok := items[*l.CatalogItemID]
 			if !ok {
@@ -161,7 +172,7 @@ func buildLines(ctx context.Context, tx *gorm.DB, rooms []calc.Room, in []LineIn
 			d.Section = defaultStr(d.Section, c.Kind)
 			d.Name = defaultStr(d.Name, c.Name)
 			d.Unit = defaultStr(d.Unit, c.Unit)
-			d.UnitPrice, d.Discount, d.Measure, d.Waste = c.Price, c.Discount, c.Measure, c.Waste
+			d.UnitPrice, d.Discount, d.Measure, d.Waste = c.PriceFor(d.Tier), c.Discount, c.Measure, c.Waste
 		}
 		d.Section = defaultStr(d.Section, model.SectionWork)
 		if d.Name == "" {
@@ -196,6 +207,14 @@ func buildLines(ctx context.Context, tx *gorm.DB, rooms []calc.Room, in []LineIn
 	return out, nil
 }
 
+// lineText is the line's name with its tile-size tier (invoice lines have no second line).
+func lineText(l *model.LineData) string {
+	if l.TierLabel == "" {
+		return l.Name
+	}
+	return l.Name + " — " + l.TierLabel
+}
+
 // remeasure recomputes the quantities of measured lines (after a change of the rooms).
 func remeasure(rooms []calc.Room, lines []model.LineData) {
 	for i := range lines {
@@ -219,7 +238,7 @@ func toInputs(lines []model.LineData) []LineInput {
 	for i, l := range lines {
 		q, p, d, m, w := l.Quantity, l.UnitPrice, l.Discount, l.Measure, l.Waste
 		out[i] = LineInput{Section: l.Section, CatalogItemID: l.CatalogItemID, Name: l.Name, Unit: l.Unit, Quantity: &q, UnitPrice: &p,
-			Discount: &d, CustomerSupplied: l.CustomerSupplied, Measure: &m, Rooms: l.Rooms, Waste: &w, Note: l.Note}
+			Discount: &d, CustomerSupplied: l.CustomerSupplied, Measure: &m, Rooms: l.Rooms, Waste: &w, Tier: l.Tier, Note: l.Note}
 	}
 	return out
 }

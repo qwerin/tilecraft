@@ -42,6 +42,7 @@ const settingsDefaults: Settings = {
   invoice_due_days: 14,
   invoice_digits: 3,
   invoice_text: '',
+  tier_labels: ['', '', ''],
 }
 
 export function useCompanyForm(slug: string, account: Account) {

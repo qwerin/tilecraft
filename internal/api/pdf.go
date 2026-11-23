@@ -165,6 +165,9 @@ func (s *server) quotePDF(ctx context.Context, acc *model.Account, q *model.Quot
 			if l.CustomerSupplied {
 				pl.Note = strings.TrimSpace("dodá zákazník " + l.Note)
 			}
+			if l.TierLabel != "" {
+				pl.Note = strings.TrimSuffix(l.TierLabel+" · "+pl.Note, " · ")
+			}
 			ps.Lines = append(ps.Lines, pl)
 		}
 		if len(ps.Lines) > 0 {

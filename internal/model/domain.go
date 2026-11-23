@@ -44,11 +44,29 @@ type CatalogItem struct {
 	Discount      float64 // default discount in %
 	Measure       string  // calc.Measure*: quantity from the measurements
 	Waste         float64 // % added to a measured quantity
-	Note          string
-	Active        bool `gorm:"not null;default:true"`
-	Position      int
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	// TierPrices are the prices of the 3 tile-size tiers (SPEC §4); nil = one price only
+	TierPrices []int64 `gorm:"serializer:json"`
+	Quick      bool    `gorm:"not null;default:false"` // quick pick in the lines editor (Doplňkové práce)
+	Note       string
+	Active     bool `gorm:"not null;default:true"`
+	Position   int
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// Tiers is the number of tile-size price tiers (SPEC §4).
+const Tiers = 3
+
+// HasTiers reports whether the item has tier prices.
+func (c *CatalogItem) HasTiers() bool { return len(c.TierPrices) == Tiers }
+
+// PriceFor is the unit price for a tile-size tier (1–3); 0 or an item without
+// tier prices = Price.
+func (c *CatalogItem) PriceFor(tier int) int64 {
+	if tier >= 1 && tier <= Tiers && c.HasTiers() {
+		return c.TierPrices[tier-1]
+	}
+	return c.Price
 }
 
 // Quote states (SPEC §5).
@@ -73,9 +91,9 @@ type Quote struct {
 	Intro       string
 	Note        string
 	Terms       string
-	VatRate     int     // % (0 for a non-payer)
-	Discount    float64 // % off the whole quote
-	ShowMeasure bool    `gorm:"not null;default:false"` // print the measurements for the customer
+	VatRate     int         // % (0 for a non-payer)
+	Discount    float64     // % off the whole quote
+	ShowMeasure bool        `gorm:"not null;default:false"` // print the measurements for the customer
 	Rooms       []calc.Room `gorm:"serializer:json"`
 	PublicToken string      `gorm:"not null;uniqueIndex"`
 	SentAt      *time.Time
@@ -105,6 +123,8 @@ type LineData struct {
 	Measure          string   // "" = manual quantity
 	Rooms            []string `gorm:"serializer:json"` // rooms of the measure ("" = all)
 	Waste            float64
+	Tier             int    `gorm:"not null;default:0"` // tile-size tier 1–3 (0 = none)
+	TierLabel        string // the tier's label when the line was saved (printed on the line)
 	Note             string
 	Position         int
 }
@@ -214,7 +234,7 @@ type Invoice struct {
 	CustRegistrationNo string
 	CustVatNo          string
 	CustEmail          string
-	VatPayer           bool // the firm was a VAT payer when it issued the invoice
+	VatPayer           bool   // the firm was a VAT payer when it issued the invoice
 	IssuedOn           string `gorm:"not null"`
 	TaxableOn          string
 	DueOn              string `gorm:"not null"`
@@ -245,4 +265,6 @@ type InvoiceLine struct {
 }
 
 // Amount is the line's price without VAT.
-func (l *InvoiceLine) Amount() int64 { return calc.LineAmount(l.Quantity, l.UnitPrice, l.Discount, false) }
+func (l *InvoiceLine) Amount() int64 {
+	return calc.LineAmount(l.Quantity, l.UnitPrice, l.Discount, false)
+}

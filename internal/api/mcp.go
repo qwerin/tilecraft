@@ -73,12 +73,14 @@ var mcpTools = []mcpTool{
 	{Name: "list_accounts", Title: "Firmy", Method: http.MethodGet, Path: "/api/auth/me",
 		Description: "The token's user with the firms (accounts) they belong to and their role (owner, admin = office, worker = crew member without prices). Every other tool takes the `account` slug from here."},
 	{Name: "get_account", Title: "Firma", Method: http.MethodGet, Path: "",
-		Description: "Company details and settings of the firm: VAT payer and default VAT rate, quote validity, introduction and terms of new quotes, invoice due days."},
+		Description: "Company details and settings of the firm: VAT payer and default VAT rate, quote validity, introduction and terms of new quotes, invoice due days, tier_labels = labels of the 3 tile-size price tiers."},
 	{Name: "list_members", Title: "Uživatelé", Method: http.MethodGet, Path: "/members",
 		Description: "Users of the firm with roles; their ids are worker_ids of jobs."},
 	{Name: "list_catalog", Title: "Ceník", Method: http.MethodGet, Path: "/catalog",
 		Description: "The firm's price list: work, material and other items with unit (m2, bm, ks, hod, kpl, bal, kg, l, km), price per unit in haléře, default discount %, " +
 			"and measure = where a quote line takes its quantity from the measurements (floor, wall, area, perimeter, length, piece; empty = quantity by hand) plus waste %. " +
+			"tier_prices = prices of the 3 tile-size tiers (1 small, 2 standard, 3 large format; labels in get_account settings.tier_labels) for laying work: set tier on the line. " +
+			"quick = additional work (vykružování, kamenický roh, nika, hydroizolace, betonování, spárování …). " +
 			"ALWAYS read it before building a quote and use catalog_item_id on lines instead of inventing prices."},
 	{Name: "create_catalog_item", Title: "Nová položka ceníku", Method: http.MethodPost, Path: "/catalog", Write: true,
 		Description: "Add a price-list item (check list_catalog first so it is not duplicated). Price in haléře per unit."},
@@ -104,7 +106,8 @@ var mcpTools = []mcpTool{
 			"width, height in METRES (295 cm = 2.95), count, area (m², only for irregular shapes instead of width×height), deductions[] (doors, windows, bathtub: width, height)}. " +
 			"Wall surface = one wall: width = wall length, height = tiling height. length = linear element (trim, skirting; width = length in m). piece = count (holes to drill). " +
 			"lines[]: prefer {catalog_item_id} — name, unit, price, discount, measure and waste come from the price list; a line with a measure gets its quantity from the rooms " +
-			"(rooms = restrict to named rooms); lines without a measure need quantity. Material the customer buys: customer_supplied=true (listed, 0 Kč). " +
+			"(rooms = restrict to named rooms); lines without a measure need quantity. Items with tier_prices: tier 1–3 by the tile size the user names " +
+			"(the price comes from the tier; ask when the size is unknown). Material the customer buys: customer_supplied=true (listed, 0 Kč). " +
 			"Free lines without catalog item: name, unit, quantity, unit_price (haléře), section. After creating, show the user the totals and app_url; the user reviews and sends it."},
 	{Name: "update_quote", Title: "Upravit nabídku", Method: http.MethodPut, Path: "/quotes/{id}", Write: true,
 		Description: "Replace a draft or sent quote (PUT: load it with get_quote and send the complete quote: rooms and ALL lines; unchanged lines can keep catalog_item_id with their quantity/price). Decided quotes are locked."},
@@ -136,7 +139,7 @@ const mcpInstructions = `TileCraft is software for tilers (obkladači): measurem
 Start with list_accounts and pass the firm slug as "account" to the other tools.
 Conventions: money is an integer in haléře (65000 = 650 Kč), dimensions in metres, areas m², lengths bm, dates "YYYY-MM-DD". Data are Czech.
 Building a quote from a sketch or dictation: read list_catalog, find or create the customer, describe each room as surfaces (floor; every tiled wall
-with its length × tiling height minus doors/windows/bathtub), add lines with catalog_item_id (quantities with a measure are computed by the server),
+with its length × tiling height minus doors/windows/bathtub), add lines with catalog_item_id (quantities with a measure are computed by the server; laying work priced by tile size gets tier 1–3),
 check with preview_measurements or get_quote and tell the user the totals per section; ask when a dimension is unclear instead of guessing.
 Writing tools create real records – confirm with the user first. Nothing is deleted or e-mailed to customers through these tools; the user sends
 quotes and invoices in the web app (app_url).`

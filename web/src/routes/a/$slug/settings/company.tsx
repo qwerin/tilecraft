@@ -10,6 +10,7 @@ import { CompanySettings, SettingsForm } from "@/components/settings/company-for
 import { useCompanyForm, type Company, type NumberSetting } from "@/components/settings/use-company-form";
 import { Hint, SwitchRow } from "@/components/settings/shared";
 import { Segmented } from "@/components/invoices/segmented";
+import { DEFAULT_TIER_LABELS } from "@/components/doc-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -152,6 +153,28 @@ function CompanyPage({ slug, account }: { slug: string; account: Account }) {
               onChange={(e) => set("quote_terms", e.target.value)}
             />
           </FormRow>
+        </div>
+      </Panel>
+
+      <Panel title="Velikost dlažby — cenové tarify">
+        <div className="flex flex-col gap-3">
+          <Hint>
+            Montáž dlažby a obkladu může mít v ceníku 3 ceny podle velikosti dlažby. V nabídce pak u řádku zvolíte velikost a cena se
+            doplní sama; název tarifu se tiskne u řádku.
+          </Hint>
+          <div className="grid grid-cols-3 gap-x-4 gap-y-3 max-md:grid-cols-1">
+            {DEFAULT_TIER_LABELS.map((d, i) => (
+              <FormRow key={i} label={`Tarif ${i + 1}`} htmlFor={`tier_${i + 1}`}>
+                <Input
+                  id={`tier_${i + 1}`}
+                  value={s.tier_labels?.[i] ?? ""}
+                  placeholder={d}
+                  maxLength={100}
+                  onChange={(e) => set("tier_labels", DEFAULT_TIER_LABELS.map((_, j) => (j === i ? e.target.value : (s.tier_labels?.[j] ?? ""))))}
+                />
+              </FormRow>
+            ))}
+          </div>
         </div>
       </Panel>
 

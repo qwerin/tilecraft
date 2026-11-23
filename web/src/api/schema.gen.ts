@@ -1319,6 +1319,10 @@ export interface components {
              * @description Purchase price per unit in haléře (optional)
              */
             purchase_price?: number;
+            /** @description Quick pick: offered as a one-tap button (Doplňkové práce) in the lines editor */
+            quick?: boolean;
+            /** @description Prices of the 3 tile-size tiers in haléře (small, standard, large format; labels in the firm's settings), used by lines with tier 1–3; empty = one price only */
+            tier_prices?: number[] | null;
             /** @enum {string} */
             unit: "m2" | "bm" | "ks" | "hod" | "kpl" | "bal" | "kg" | "l" | "km";
             /**
@@ -1361,6 +1365,10 @@ export interface components {
              * @description Purchase price per unit in haléře (optional)
              */
             purchase_price?: number;
+            /** @description Quick pick: offered as a one-tap button (Doplňkové práce) in the lines editor */
+            quick?: boolean;
+            /** @description Prices of the 3 tile-size tiers in haléře (small, standard, large format; labels in the firm's settings), used by lines with tier 1–3; empty = one price only */
+            tier_prices?: number[] | null;
             /** @enum {string} */
             unit: "m2" | "bm" | "ks" | "hod" | "kpl" | "bal" | "kg" | "l" | "km";
             /**
@@ -1931,6 +1939,13 @@ export interface components {
             rooms: string[];
             /** @enum {string} */
             section: "work" | "material" | "other";
+            /**
+             * Format: int64
+             * @description Tile-size tier 1–3, 0 = none
+             */
+            tier: number;
+            /** @description Label of the tier ("" = none), printed on the line */
+            tier_label: string;
             unit: string;
             /**
              * Format: int64
@@ -1973,11 +1988,16 @@ export interface components {
              * @enum {string}
              */
             section?: "" | "work" | "material" | "other";
+            /**
+             * Format: int64
+             * @description Tile-size tier 1–3 (small, standard, large format; labels in the firm's settings), 0 = none. For a catalog item with tier_prices the default unit_price is the tier's price
+             */
+            tier?: number;
             /** @description m2, bm, ks, hod, kpl, bal, kg, l, km; default = the catalog item's unit */
             unit?: string;
             /**
              * Format: int64
-             * @description Haléře per unit (1 Kč = 100); default = the catalog price
+             * @description Haléře per unit (1 Kč = 100); default = the catalog price (of the tier, when the item has tier prices)
              */
             unit_price?: number;
             /**
@@ -2409,6 +2429,8 @@ export interface components {
             quote_terms: string;
             /** Format: int64 */
             quote_valid_days: number;
+            /** @description Labels of the 3 tile-size price tiers (small, standard, large format); "" = the default label, omitted = unchanged */
+            tier_labels?: string[] | null;
             /** @description The firm is a VAT payer (prices are without VAT, documents show VAT) */
             vat_payer: boolean;
         };
