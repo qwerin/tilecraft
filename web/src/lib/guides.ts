@@ -214,6 +214,7 @@ export const uiIcons: Record<string, LucideIcon> = {
   'Vycentrovat': ScanIcon,
   'Optimalizovat řezy': SparklesIcon,
   'Uložit jako kladečský plán': ImageUpIcon,
+  'Bez plánu': Trash2Icon,
 }
 
 export const guides: Guide[] = [
@@ -369,23 +370,104 @@ export const guides: Guide[] = [
       },
       {
         id: 'kladecsky-plan',
-        title: 'Kladečský plán: dlaždice, spára, řezy',
-        text: 'Aplikace nakreslí, jak dlaždice na podlahu nebo stěnu padnou: kde budou řezy, kolik celých a řezaných kusů a kolik koupit. Plocha ani ceny se tím nemění.',
+        title: 'Kladečský plán: k čemu je a jak ho otevřít',
+        text: 'Aplikace z rozměrů plochy nakreslí, jak na podlahu nebo stěnu padnou dlaždice: kde začít, kde vyjdou řezy, kolik bude celých a řezaných kusů a kolik koupit. Úzké řezy (proužky u kraje) vypadají špatně a hůř se řežou — plán je ukáže dřív, než začnete lepit. Plocha, množství ani ceny v nabídce se plánem nemění.',
         steps: [
-          'U podlahy nebo stěny (zadané rozměry) klepněte na [[Kladečský plán]]. Otevře se výkres plochy; nahoře přepínáte plochy místnosti.',
-          'Dlaždice: vyberte formát (30×60, 60×60…) nebo napište šířku a výšku v cm; [[Otočit]] dá dlaždici na výšku / na šířku. Spára v mm.',
-          'Vzor: Rovně, Na vazbu ½ nebo Na vazbu ⅓.',
-          'Začátek kladení: odkud jde celá dlaždice (modře) — Zleva / Na střed / Zprava a u stěny Od podlahy / Na střed / Od stropu. Posun doprava a nahoru doladí v cm.',
-          'Červené dlaždice jsou úzké řezy (užší než ⅓ dlaždice). [[Optimalizovat řezy]] posune dlaždice tak, aby u krajů i kolem dveří, okna a vany zbyly co nejširší kusy; [[Vycentrovat]] dá stejné řezy na obě strany.',
-          'Otvory: u dveří, okna nebo vany můžete zadat polohu Zleva a Od podlahy (v metrech); tlačítko Automaticky ji vrátí.',
-          'Nákup: Prořez (výchozí 10 %, na vazbu 15 %) a m² v balení — pod výkresem je, kolik m², kusů a balení koupit.',
-          'Hotovo vrátí plán do zaměření (nabídku pak uložte). [[Uložit jako kladečský plán]] uloží nabídku a obrázek celé místnosti přidá do „Fotky a kladečský plán“; s přepínačem Ukázat zákazníkovi ho zákazník uvidí v nabídce i v PDF.',
+          'V Zaměření u podlahy nebo stěny zadané rozměry (šířka × výška) klepněte na [[Kladečský plán]]. Když už plán má, je na tlačítku i formát, např. 30×60.',
+          'Na telefonu se otevře přes celou obrazovku: nahoře výkres, pod ním nastavení. Na počítači je nastavení vedle výkresu.',
+          'Nahoře přepínáte plochy místnosti (podlaha, jednotlivé stěny). Plocha bez plánu má [[Nakreslit plán]]; převezme dlaždici a spáru z naposledy kreslené plochy stejného druhu.',
+          'Plochu bez plánu nechcete? Dole [[Bez plánu]] plán u ní zruší.',
+        ],
+        tips: ['Plocha zadaná jen v m² ([[Zadat plochu]]) plán mít nemůže — nejsou rozměry. Nepravidelný tvar rozdělte na víc obdélníků.'],
+      },
+      {
+        id: 'plan-dlazdice',
+        title: 'Dlaždice, spára a vzor',
+        steps: [
+          'Dlaždice: klepněte na formát (10×10, 15×15, 20×20, 30×30, 30×60, 60×60, 60×120, 20×120, 10×30), nebo napište Šířku a Výšku v cm (např. 45×90).',
+          '[[Otočit]] prohodí šířku a výšku — obdélníková dlaždice na výšku / na šířku.',
+          'Spára: 1,5 / 2 / 3 / 5 mm, nebo napište vlastní. Spára se kreslí jen mezi dlaždicemi; u stěny a kolem vany je silikon.',
+          'Vzor: Rovně (spáry v řadě), Na vazbu ½ (každá druhá řada posunutá o půl dlaždice, jako cihly) nebo Na vazbu ⅓ (posun o třetinu — u dlouhých dlaždic se míň projeví prohnutí).',
+        ],
+      },
+      {
+        id: 'plan-zacatek',
+        title: 'Začátek kladení a posun',
+        text: 'Celá výchozí dlaždice je ve výkresu modře — od ní se klade. Kde začnete, rozhoduje, kde vyjdou řezy.',
+        steps: [
+          'Začátek kladení vodorovně: Zleva (celá dlaždice v levém rohu, řez vpravo), Na střed (dlaždice na ose, stejné řezy po stranách), Zprava.',
+          'Svisle u stěny: Od podlahy (celá řada dole, řez nahoře u stropu nebo u konce obkladu), Na střed, Od stropu. U podlahy: Nahoře, Na střed, Dole.',
+          'Posun doprava a Posun nahoru (cm) dlaždice jemně posune, např. aby spára vyšla na hranu okna.',
+        ],
+        tips: ['U stěny se většinou začíná Od podlahy — celá řada dole je nejvíc vidět. Řez nahoře zakryje lišta nebo strop.'],
+      },
+      {
+        id: 'plan-rezy',
+        title: 'Úzké řezy: Optimalizovat a Vycentrovat',
+        text: 'Pod výkresem je Celé / Řezané / Nejužší řez. Ve výkresu jsou celé dlaždice béžové, řezané žlutě a úzké řezy červeně — užší než ⅓ dlaždice ve svém směru (u 60×60 pod 20 cm, u 30×60 na šířku pod 10 cm). Pak se objeví červené upozornění.',
+        steps: [
+          '[[Optimalizovat řezy]] zkusí posuny po 5 mm a vybere ten, kde je nejužší řez co nejširší — u krajů i kolem dveří, okna a vany. Při stejném výsledku dá přednost menšímu počtu řezů a souměrnosti.',
+          '[[Vycentrovat]] dá na střed plochy buď dlaždici, nebo spáru (co dá širší krajní kusy) — řezy jsou pak na obou stranách stejné.',
+          'Výsledek můžete dál doladit posunem nebo změnou začátku; počty se přepočítají hned.',
         ],
         tips: [
-          'Při dalším uložení plánu téže místnosti se starý obrázek nahradí novým.',
-          'Pruh nad dveřmi nebo mezi oknem a stropem je daný rozměry — za úzký řez se nepočítá.',
-          'Stejný plán jde nakreslit i u zakázky v [[Upravit položky]] → Zaměření; obrázek se uloží do fotek zakázky a uvidí ho i parťák.',
+          'Optimalizace rozdělí řez mezi oba kraje — i nahoře a dole. Chcete celou řadu u podlahy? Nastavte Od podlahy a Posun nahoru 0.',
+          'Pruh nad dveřmi nebo mezi oknem a stropem je daný rozměry, posunem se nezmění — za úzký řez se nepočítá.',
         ],
+      },
+      {
+        id: 'plan-otvory',
+        title: 'Dveře, okna a vana ve výkresu',
+        text: 'Odpočty plochy (dveře, okno, vana, jiné) se kreslí šrafovaně — tam se neobkládá. Dlaždice úplně pod otvorem se nepočítá, napůl zakrytá je řezaná.',
+        steps: [
+          'Poloha se doplní sama: dveře a vana na podlaze, okno na středu.',
+          'Jinou polohu zadáte v části Otvory: Zleva a Od podlahy (u podlahy Shora), v metrech. Poloha je jen pro výkres, plocha se nemění.',
+          'Tlačítko Automaticky vrátí výchozí polohu.',
+        ],
+        tips: [
+          'Vanu zadejte v Zaměření jako odpočet stěny (Odečíst: Vana) — šířka vany × výška, kam nebudete obkládat.',
+          'Polohu jde zadat jen u odpočtu s počtem 1 (dvě stejná okna zadejte jako dva odpočty).',
+        ],
+      },
+      {
+        id: 'plan-nakup',
+        title: 'Kolik dlaždic koupit',
+        steps: [
+          'V části Nákup je Prořez v % (výchozí 10 %, na vazbu 15 %) a m² v balení (z obalu nebo katalogu).',
+          'Pod výkresem se ukáže např. „5,26 m² + prořez 10 % = 5,79 m² ≈ 33 ks dlaždic 30×60, 5 bal.“ (balení 1,44 m²).',
+        ],
+        tips: ['Počet se počítá z m² plochy po odpočtech; řádek materiálu v nabídce se tím sám nezmění — množství tam upravte podle potřeby.'],
+      },
+      {
+        id: 'plan-ulozit',
+        title: 'Uložení a plán pro zákazníka',
+        steps: [
+          '[[Hotovo]] vrátí plán do zaměření; nabídka pak ukáže „neuloženo“ — uložte ji. [[Zrušit]] změny zahodí.',
+          '[[Uložit jako kladečský plán]] uloží nabídku a obrázek celé místnosti (všechny plochy s plánem a vysvětlivky) přidá do panelu Fotky a kladečský plán.',
+          'Přepínač Ukázat zákazníkovi vedle (výchozí zapnuto) rozhodne, jestli plán uvidí zákazník na stránce nabídky a v PDF. Změnit to jde i později v menu [[⋮]] na náhledu obrázku.',
+          'Plán upravíte kdykoli znovu; další uložení téže místnosti starý obrázek nahradí.',
+        ],
+        tips: [
+          'Přijatá nabídka je zamčená: plán jde jen prohlížet ([[Zavřít]]) a uložit jeho obrázek, měnit ne. Změny dělejte v zakázce.',
+          'V zakázce: [[Upravit položky]] → Zaměření → [[Kladečský plán]]. Obrázek se uloží do fotek zakázky a uvidí ho i parťák v telefonu.',
+        ],
+      },
+      {
+        id: 'plan-priklad',
+        title: 'Příklad: podlaha a stěna koupelny',
+        example: {
+          title: 'Jak plán pomůže s řezy',
+          intro: 'Dvě plochy koupelny a co plán ukáže (čísla spočítaná aplikací):',
+          rows: [
+            { paper: 'Podlaha 2,50 × 2,00 m, dlažba 60×60, spára 2 mm, Zleva / Nahoře', app: 'Vpravo vyjde proužek 9,2 cm — 8 úzkých řezů, červené upozornění' },
+            { paper: 'Totéž Na střed', app: 'Nahoře i dole proužky 9,6 cm — pořád 10 úzkých řezů' },
+            { paper: 'Optimalizovat řezy', app: 'Kraje vlevo a vpravo asi 34,5 cm, nahoře a dole asi 39,7 cm — žádný úzký řez (6 celých, 14 řezaných)' },
+            { paper: 'Stěna za vanou 2,95 × 2,10 m, obklad 30×60 na výšku, Na střed / Od podlahy', app: 'Po stranách 11,5 cm (nad ⅓ šířky 30 cm, tedy v pořádku), dole celá řada, nahoře řez 29,4 cm' },
+            { paper: 'Optimalizovat řezy na stěně', app: 'Po stranách 26,5 cm, ale dole i nahoře asi 44,5 cm — když chcete celou řadu u vany, vraťte Od podlahy a Posun nahoru 0' },
+            { paper: 'Nákup stěny: 5,26 m² po odpočtu vany, balení 1,44 m²', app: '5,79 m² s prořezem 10 % ≈ 33 ks, 5 bal.' },
+          ],
+          note: 'Zákazník dostane obrázek s celou místností; vy víte, kolik dlaždic objednat a kde začít.',
+        },
       },
       {
         id: 'nepravidelne',
@@ -484,6 +566,7 @@ export const guides: Guide[] = [
           '[[Vyfotit]] otevře fotoaparát, [[Nahrát]] vybere soubor.',
           'Kladečský plán zákazníkovi ukážete v menu souboru ([[⋮]] na náhledu) → [[Ukázat zákazníkovi v nabídce]]; plán má pak štítek „zákazník“. Zpět [[Skrýt před zákazníkem]].',
           'Jinou kategorii nastavíte tamtéž přes [[Přesunout do]].',
+          'Plán nemáte na papíře? Nakreslete ho v aplikaci: v Zaměření u plochy [[Kladečský plán]] (návod Zaměření na stavbě → Kladečský plán).',
         ],
         tips: [
           'Sdílený plán je na stránce pro zákazníka i v PDF nabídky (obrázek na samostatné straně, plán ve formátu PDF jako odkaz na online nabídku).',
