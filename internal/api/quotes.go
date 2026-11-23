@@ -97,6 +97,7 @@ type Quote struct {
 	DecidedAt    *time.Time   `json:"decided_at"`
 	DecidedBy    string       `json:"decided_by"`
 	Reason       string       `json:"reason"`
+	Attachments  []Attachment `json:"attachments" nullable:"false" doc:"Photos of the original state and laying plans"`
 }
 
 // QuoteSend sends the link to the customer by e-mail, or only marks the quote sent.
@@ -243,12 +244,16 @@ func (s *server) toQuote(ctx context.Context, q *model.Quote) (Quote, error) {
 	if rooms == nil {
 		rooms = []calc.Room{}
 	}
+	atts, err := s.attachmentsOf(ctx, "quote_id", q.ID)
+	if err != nil {
+		return Quote{}, err
+	}
 	acc := auth.AccountFrom(ctx)
 	return Quote{QuoteSummary: s.toQuoteSummary(q, jobID), SiteAddress: q.SiteAddress, Intro: q.Intro, Note: q.Note, Terms: q.Terms,
 		VatRate: q.VatRate, VatPayer: acc.VatPayer, Discount: q.Discount, ShowMeasure: q.ShowMeasure, Rooms: rooms,
 		Measurements: measurements(rooms), Lines: lines, Totals: totalsOf(quoteLineData(q), q.Discount, q.VatRate),
 		PublicURL: s.publicQuoteURL(q), AppURL: strings.TrimRight(s.cfg.PublicURL, "/") + "/a/" + acc.Slug + "/quotes/" + fmt.Sprint(q.ID),
-		SentAt: q.SentAt, SentTo: q.SentTo, DecidedAt: q.DecidedAt, DecidedBy: q.DecidedBy, Reason: q.Reason}, nil
+		SentAt: q.SentAt, SentTo: q.SentTo, DecidedAt: q.DecidedAt, DecidedBy: q.DecidedBy, Reason: q.Reason, Attachments: atts}, nil
 }
 
 func (s *server) quoteOut(ctx context.Context, id uint) (*Out[Quote], error) {
@@ -396,6 +401,7 @@ func (s *server) updateQuote(ctx context.Context, in *struct {
 func (s *server) deleteQuote(ctx context.Context, in *struct {
 	ID uint `path:"id"`
 }) (*NoContent, error) {
+	var keys []string
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		q, err := s.loadQuote(ctx, tx, in.ID)
 		if err != nil {
@@ -411,10 +417,16 @@ func (s *server) deleteQuote(ctx context.Context, in *struct {
 		if err := tx.Where("quote_id = ?", q.ID).Delete(&model.QuoteLine{}).Error; err != nil {
 			return err
 		}
+		if keys, err = deleteQuoteFiles(tx, q.ID); err != nil {
+			return err
+		}
 		return tx.Delete(q).Error
 	})
 	if err != nil {
 		return nil, wrapTx(err, "quote")
+	}
+	for _, k := range keys {
+		_ = s.deps.Storage.Delete(ctx, k)
 	}
 	return &NoContent{}, nil
 }

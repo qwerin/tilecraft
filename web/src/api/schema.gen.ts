@@ -42,6 +42,26 @@ export interface paths {
         patch: operations["patch-api-accounts-by-slug"];
         trace?: never;
     };
+    "/api/accounts/{slug}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List API accounts by slug attachments
+         * @description Allowed roles: owner, admin, worker.
+         */
+        get: operations["list-api-accounts-by-slug-attachments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/accounts/{slug}/attachments/{id}": {
         parameters: {
             query?: never;
@@ -59,7 +79,11 @@ export interface paths {
         delete: operations["delete-api-accounts-by-slug-attachments-by-id"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Patch API accounts by slug attachments by ID
+         * @description Allowed roles: owner, admin, worker.
+         */
+        patch: operations["patch-api-accounts-by-slug-attachments-by-id"];
         trace?: never;
     };
     "/api/accounts/{slug}/catalog": {
@@ -1275,6 +1299,11 @@ export interface components {
             used_by_email?: string;
         };
         Attachment: {
+            /**
+             * @description before = original state, during = during the work, after = finished job, plan = laying plan, other
+             * @enum {string}
+             */
+            category: "before" | "during" | "after" | "plan" | "other";
             content_type: string;
             /** Format: date-time */
             created_at: string;
@@ -1282,10 +1311,22 @@ export interface components {
             /** Format: int64 */
             id: number;
             /** Format: int64 */
+            job_id: number | null;
+            /** Format: int64 */
+            quote_id: number | null;
+            /** @description Laying plan shown to the customer (public quote page and quote PDF) */
+            shared: boolean;
+            /** Format: int64 */
             size: number;
             /** Format: int64 */
             uploaded_by: number;
             url: string;
+        };
+        AttachmentPatch: {
+            /** @enum {string} */
+            category?: "before" | "during" | "after" | "plan" | "other";
+            /** @description Show the laying plan to the customer (category plan of a quote; office only) */
+            shared?: boolean;
         };
         CatalogInput: {
             active: boolean;
@@ -2194,6 +2235,13 @@ export interface components {
             /** @enum {string} */
             state: "accepted" | "rejected";
         };
+        PublicFile: {
+            content_type: string;
+            filename: string;
+            /** Format: int64 */
+            id: number;
+            url: string;
+        };
         PublicFirm: {
             address: string;
             email: string;
@@ -2221,6 +2269,8 @@ export interface components {
             measurements?: components["schemas"]["Measurements"];
             note: string;
             number: string;
+            /** @description Laying plans the firm shows to the customer */
+            plans: components["schemas"]["PublicFile"][];
             /** @description Only when the firm shows the measurements */
             rooms: components["schemas"]["Room"][];
             site_address: string;
@@ -2234,6 +2284,8 @@ export interface components {
         Quote: {
             /** @description The quote in the application */
             app_url: string;
+            /** @description Photos of the original state and laying plans */
+            attachments: components["schemas"]["Attachment"][];
             customer: components["schemas"]["CustomerRef"];
             /** Format: date-time */
             decided_at: string | null;
@@ -2587,6 +2639,45 @@ export interface operations {
             };
         };
     };
+    "list-api-accounts-by-slug-attachments": {
+        parameters: {
+            query?: {
+                /** @description Files of this quote */
+                quote_id?: number;
+                /** @description Files of this job (including the files of its quote) */
+                job_id?: number;
+                /** @description before, during, after, plan, other; comma separated */
+                category?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Firm slug */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "delete-api-accounts-by-slug-attachments-by-id": {
         parameters: {
             query?: never;
@@ -2606,6 +2697,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "patch-api-accounts-by-slug-attachments-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Firm slug */
+                slug: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttachmentPatch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
             };
             /** @description Error */
             default: {

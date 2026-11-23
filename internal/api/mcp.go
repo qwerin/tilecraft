@@ -98,7 +98,7 @@ var mcpTools = []mcpTool{
 	{Name: "list_quotes", Title: "Nabídky", Method: http.MethodGet, Path: "/quotes",
 		Description: "Quotes (nabídky) with filters: state (draft, sent, accepted, rejected, open = draft+sent), customer_id, q. expired = sent and past validity."},
 	{Name: "get_quote", Title: "Detail nabídky", Method: http.MethodGet, Path: "/quotes/{id}",
-		Description: "Full quote: measurements (rooms, surfaces, computed totals), lines with amounts, totals (work, material, other, discount, VAT, total), link for the customer, job."},
+		Description: "Full quote: measurements (rooms, surfaces, computed totals), lines with amounts, totals (work, material, other, discount, VAT, total), link for the customer, job, photos and laying plans (attachments)."},
 	{Name: "create_quote", Title: "Nová nabídka", Method: http.MethodPost, Path: "/quotes", Write: true,
 		Description: "Create a draft quote from a measurement (a sketch photo, dictated dimensions). rooms[]: {name, surfaces[]}; surface {name, kind: floor|wall|length|piece, " +
 			"width, height in METRES (295 cm = 2.95), count, area (m², only for irregular shapes instead of width×height), deductions[] (doors, windows, bathtub: width, height)}. " +
@@ -122,6 +122,10 @@ var mcpTools = []mcpTool{
 		Description: "Move a job to planned, in_progress, done or cancelled (invoicing sets invoiced)."},
 	{Name: "add_job_note", Title: "Zápis do deníku", Method: http.MethodPost, Path: "/jobs/{id}/notes", Write: true,
 		Description: "Add a diary note to a job (what was done, what is missing)."},
+	{Name: "list_attachments", Title: "Fotky a soubory", Method: http.MethodGet, Path: "/attachments",
+		Description: "Photos and files of quotes and jobs, newest first: filter by quote_id, job_id (includes the files of its quote) and category " +
+			"(before = original state, during = work in progress, after = finished job, plan = laying plan, other). shared = a laying plan the customer sees. " +
+			"Show one with get_attachment (kind attachment)."},
 	{Name: "list_invoices", Title: "Faktury", Method: http.MethodGet, Path: "/invoices",
 		Description: "Invoices and advance invoices with filters (kind, state unpaid/overdue/paid, customer_id, job_id, year, q)."},
 	{Name: "get_invoice", Title: "Detail faktury", Method: http.MethodGet, Path: "/invoices/{id}",

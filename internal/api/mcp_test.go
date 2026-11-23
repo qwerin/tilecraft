@@ -100,7 +100,7 @@ func TestMCPQuoteFromSketch(t *testing.T) {
 			t.Errorf("tool %s must not exist", tool.Name)
 		}
 	}
-	for _, n := range []string{"list_catalog", "create_quote", "preview_measurements", "get_attachment", "upload_attachment"} {
+	for _, n := range []string{"list_catalog", "create_quote", "preview_measurements", "get_attachment", "upload_attachment", "list_attachments"} {
 		if !names[n] {
 			t.Errorf("missing tool %s", n)
 		}
@@ -132,6 +132,16 @@ func TestMCPQuoteFromSketch(t *testing.T) {
 	}
 	if _, isErr := callTool(t, s, "get_quote", map[string]any{"account": acc, "id": 999}); !isErr {
 		t.Fatal("unknown quote must fail")
+	}
+	// a laying plan for the quote, listed by category
+	up := mustTool[[]api.Attachment](t, s, "upload_attachment", map[string]any{"account": acc, "target": "quote", "id": q.ID, "filename": "plan.pdf",
+		"category": "plan", "content_base64": base64.StdEncoding.EncodeToString([]byte("%PDF-1.4"))})
+	if len(up) != 1 || up[0].Category != "plan" || up[0].QuoteID == nil {
+		t.Fatalf("upload via MCP: %+v", up)
+	}
+	plans := mustTool[[]api.Attachment](t, s, "list_attachments", map[string]any{"account": acc, "quote_id": q.ID, "category": "plan"})
+	if len(plans) != 1 || plans[0].ID != up[0].ID {
+		t.Fatalf("list via MCP: %+v", plans)
 	}
 }
 

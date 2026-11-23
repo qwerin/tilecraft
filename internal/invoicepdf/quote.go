@@ -46,6 +46,7 @@ type Quote struct {
 	Note        string
 	Terms       string
 	URL         string // where the customer accepts the quote, "" = not printed
+	Plans       []Plan // laying plans shown to the customer, each image on its own page
 }
 
 // QuoteFilename is the quote's file name.
@@ -118,6 +119,9 @@ func QuotePDF(q Quote) (_ []byte, err error) {
 
 	d.paragraph("Poznámka", q.Note)
 	d.paragraph("Podmínky", q.Terms)
+	if len(q.Plans) > 0 {
+		d.plans(q.Plans, q.URL)
+	}
 	return d.output()
 }
 

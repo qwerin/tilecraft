@@ -2,25 +2,17 @@ package api
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
-	"mime"
 	"net/http"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 
 	"github.com/qwerin/tilecraft/internal/auth"
 	"github.com/qwerin/tilecraft/internal/calc"
-	"github.com/qwerin/tilecraft/internal/httpsec"
 	"github.com/qwerin/tilecraft/internal/model"
-	"github.com/qwerin/tilecraft/internal/storage"
 )
 
 // JobInput creates or replaces a job (SPEC §6).
@@ -75,17 +67,6 @@ type JobNoteInput struct {
 	Text string `json:"text" minLength:"1" maxLength:"5000"`
 }
 
-// Attachment is a photo or file of a job.
-type Attachment struct {
-	ID          uint      `json:"id"`
-	Filename    string    `json:"filename"`
-	ContentType string    `json:"content_type"`
-	Size        int64     `json:"size"`
-	URL         string    `json:"url"`
-	UploadedBy  uint      `json:"uploaded_by"`
-	CreatedAt   time.Time `json:"created_at"`
-}
-
 // QuoteRef is the quote a job came from, to compare with.
 type QuoteRef struct {
 	ID     uint        `json:"id"`
@@ -121,7 +102,6 @@ func (s *server) registerJobs(g huma.API) {
 	huma.Post(g, "/jobs/{id}/state", s.setJobState, auth.ForAll)
 	huma.Post(g, "/jobs/{id}/notes", s.addJobNote, status(http.StatusCreated), auth.ForAll)
 	huma.Delete(g, "/job-notes/{id}", s.deleteJobNote, status(http.StatusNoContent), auth.ForAll)
-	huma.Delete(g, "/attachments/{id}", s.deleteAttachment, status(http.StatusNoContent), auth.ForAll)
 }
 
 func (s *server) toJobSummary(ctx context.Context, j *model.Job) JobSummary {
@@ -187,11 +167,6 @@ func jobLineData(j *model.Job) []model.LineData {
 	return out
 }
 
-func toAttachment(slug string, a *model.Attachment) Attachment {
-	return Attachment{ID: a.ID, Filename: a.Filename, ContentType: a.ContentType, Size: a.Size, UploadedBy: a.UploadedBy, CreatedAt: a.CreatedAt,
-		URL: fmt.Sprintf("/api/accounts/%s/attachments/%d", slug, a.ID)}
-}
-
 func (s *server) jobOut(ctx context.Context, id uint) (*Out[Job], error) {
 	db := s.db.WithContext(ctx)
 	j, err := s.loadJob(ctx, db, id)
@@ -236,12 +211,8 @@ func (s *server) jobOut(ctx context.Context, id uint) (*Out[Job], error) {
 	for _, n := range notes {
 		out.Notes = append(out.Notes, JobNote{ID: n.ID, On: n.On, Text: n.Text, Author: defaultStr(n.User.Name, n.User.Email), UserID: n.UserID, CreatedAt: n.CreatedAt})
 	}
-	var atts []model.Attachment
-	if err := s.scoped(ctx).Where("job_id = ?", j.ID).Order("id").Find(&atts).Error; err != nil {
-		return nil, dbErr(err, "attachments")
-	}
-	for i := range atts {
-		out.Attachments = append(out.Attachments, toAttachment(slug, &atts[i]))
+	if out.Attachments, err = s.attachmentsOf(ctx, "job_id", j.ID); err != nil {
+		return nil, err
 	}
 	return &Out[Job]{Body: out}, nil
 }
@@ -383,8 +354,10 @@ func (s *server) createJobFromQuote(ctx context.Context, in *struct {
 		vat := q.VatRate
 		b := JobInput{CustomerID: q.CustomerID, Title: q.Title, SiteAddress: q.SiteAddress, StartOn: in.Body.StartOn, EndOn: in.Body.EndOn,
 			VatRate: &vat, Discount: q.Discount, Rooms: q.Rooms, Lines: toInputs(quoteLineData(q))}
-		j, err = s.newJob(ctx, tx, &b, &q.ID)
-		return err
+		if j, err = s.newJob(ctx, tx, &b, &q.ID); err != nil {
+			return err
+		}
+		return linkQuoteFiles(ctx, tx, q.ID, j.ID)
 	})
 	if err != nil {
 		return nil, wrapTx(err, "job")
@@ -425,10 +398,11 @@ func (s *server) deleteJob(ctx context.Context, in *struct {
 		if n > 0 {
 			return conflict(CodeInvoiced, "the job has invoices")
 		}
-		if err := tx.Model(&model.Attachment{}).Where("job_id = ?", j.ID).Pluck("storage_key", &keys).Error; err != nil {
+		// files of the quote stay with the quote, the job's own files go
+		if keys, err = detachJobFiles(tx, j.ID); err != nil {
 			return err
 		}
-		for _, m := range []any{&model.JobLine{}, &model.JobNote{}, &model.Attachment{}} {
+		for _, m := range []any{&model.JobLine{}, &model.JobNote{}} {
 			if err := tx.Where("job_id = ?", j.ID).Delete(m).Error; err != nil {
 				return err
 			}
@@ -509,113 +483,5 @@ func (s *server) deleteJobNote(ctx context.Context, in *struct {
 	if err := s.db.WithContext(ctx).Delete(&n).Error; err != nil {
 		return nil, dbErr(err, "note")
 	}
-	return &NoContent{}, nil
-}
-
-// maxUpload bounds one uploaded file.
-const maxUpload = 50 << 20
-
-func (s *server) uploadAttachment(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id, _ := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	j, err := s.loadJob(ctx, s.db.WithContext(ctx), uint(id))
-	if err != nil {
-		httpsec.WriteProblem(w, http.StatusNotFound, "not_found", "job not found")
-		return
-	}
-	accID, slug := auth.AccountFrom(ctx).ID, auth.AccountFrom(ctx).Slug
-	r.Body = http.MaxBytesReader(w, r.Body, maxUpload+1<<20)
-	mr, err := r.MultipartReader()
-	if err != nil {
-		httpsec.WriteProblem(w, http.StatusBadRequest, "bad_request", "multipart body expected")
-		return
-	}
-	saved := []Attachment{}
-	for {
-		part, err := mr.NextPart()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			httpsec.WriteProblem(w, http.StatusRequestEntityTooLarge, "too_large", "file is too large (max 50 MB)")
-			return
-		}
-		if part.FileName() == "" {
-			continue
-		}
-		key := fmt.Sprintf("%d/%s", accID, randomHex())
-		cr := &countingReader{r: io.LimitReader(part, maxUpload+1)}
-		if err := s.deps.Storage.Put(ctx, key, cr); err != nil {
-			httpsec.WriteProblem(w, http.StatusInternalServerError, "internal", "storing the file failed")
-			return
-		}
-		if cr.n > maxUpload {
-			_ = s.deps.Storage.Delete(ctx, key)
-			httpsec.WriteProblem(w, http.StatusRequestEntityTooLarge, "too_large", "file is too large (max 50 MB)")
-			return
-		}
-		name := filepath.Base(part.FileName())
-		ct := part.Header.Get("Content-Type")
-		if ct == "" || ct == "application/octet-stream" {
-			if t := mime.TypeByExtension(strings.ToLower(filepath.Ext(name))); t != "" {
-				ct = t
-			}
-		}
-		a := model.Attachment{AccountID: accID, JobID: j.ID, Filename: name, ContentType: ct, Size: cr.n, StorageKey: key, UploadedBy: auth.UserFrom(ctx).ID}
-		if err := s.db.WithContext(ctx).Create(&a).Error; err != nil {
-			_ = s.deps.Storage.Delete(ctx, key)
-			httpsec.WriteProblem(w, http.StatusInternalServerError, "internal", "saving the file failed")
-			return
-		}
-		saved = append(saved, toAttachment(slug, &a))
-	}
-	writeJSON(w, http.StatusCreated, saved)
-}
-
-func (s *server) downloadAttachment(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id, _ := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	var a model.Attachment
-	if err := s.scoped(ctx).First(&a, id).Error; err != nil {
-		httpsec.WriteProblem(w, http.StatusNotFound, "not_found", "attachment not found")
-		return
-	}
-	f, err := s.deps.Storage.Get(ctx, a.StorageKey)
-	if err != nil {
-		code := http.StatusInternalServerError
-		if errors.Is(err, storage.ErrNotFound) {
-			code = http.StatusNotFound
-		}
-		httpsec.WriteProblem(w, code, statusCodes[code], "file is not available")
-		return
-	}
-	defer f.Close()
-	h := w.Header()
-	h.Set("Content-Type", a.ContentType)
-	h.Set("Content-Length", strconv.FormatInt(a.Size, 10))
-	h.Set("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'")
-	disp := "attachment"
-	if r.URL.Query().Get("inline") == "1" && (strings.HasPrefix(a.ContentType, "image/") || strings.HasPrefix(a.ContentType, "video/") || a.ContentType == "application/pdf") {
-		disp = "inline"
-	}
-	h.Set("Content-Disposition", mime.FormatMediaType(disp, map[string]string{"filename": a.Filename}))
-	h.Set("Cache-Control", "private, max-age=3600")
-	_, _ = io.Copy(w, f)
-}
-
-func (s *server) deleteAttachment(ctx context.Context, in *struct {
-	ID uint `path:"id"`
-}) (*NoContent, error) {
-	var a model.Attachment
-	if err := s.scoped(ctx).First(&a, in.ID).Error; err != nil {
-		return nil, dbErr(err, "attachment")
-	}
-	if a.UploadedBy != auth.UserFrom(ctx).ID && !isManager(ctx) {
-		return nil, huma.Error403Forbidden("only your own files")
-	}
-	if err := s.db.WithContext(ctx).Delete(&a).Error; err != nil {
-		return nil, dbErr(err, "attachment")
-	}
-	_ = s.deps.Storage.Delete(ctx, a.StorageKey)
 	return &NoContent{}, nil
 }

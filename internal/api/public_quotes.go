@@ -50,6 +50,15 @@ type PublicQuote struct {
 	Totals       calc.Totals   `json:"totals"`
 	DecidedAt    *time.Time    `json:"decided_at"`
 	DecidedBy    string        `json:"decided_by"`
+	Plans        []PublicFile  `json:"plans" nullable:"false" doc:"Laying plans the firm shows to the customer"`
+}
+
+// PublicFile is a file shown to the customer (a laying plan), served through the quote's token.
+type PublicFile struct {
+	ID          uint   `json:"id"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	URL         string `json:"url"`
 }
 
 // PublicDecision is the customer's answer.
@@ -97,7 +106,7 @@ func (s *server) toPublicQuote(q *model.Quote, acc *model.Account) PublicQuote {
 		Firm: PublicFirm{Name: acc.Name, RegistrationNo: acc.RegistrationNo, VatNo: acc.VatNo, Address: joinAddress(acc.Street, acc.Zip, acc.City),
 			Phone: acc.Phone, Email: acc.Email, Web: acc.Web, Logo: logo, VatPayer: acc.VatPayer},
 		Customer: toCustomerRef(&q.Customer), Rooms: []calc.Room{}, Lines: lines, Totals: totalsOf(quoteLineData(q), q.Discount, q.VatRate),
-		DecidedAt: q.DecidedAt, DecidedBy: q.DecidedBy}
+		DecidedAt: q.DecidedAt, DecidedBy: q.DecidedBy, Plans: []PublicFile{}}
 	out.Customer.ID = 0
 	out.CanDecide = q.State == model.QuoteSent && !out.Expired
 	if q.ShowMeasure && q.Rooms != nil {
@@ -112,7 +121,21 @@ func (s *server) getPublicQuote(ctx context.Context, in *tokenPath) (*Out[Public
 	if err != nil {
 		return nil, err
 	}
-	return &Out[PublicQuote]{Body: s.toPublicQuote(q, acc)}, nil
+	return s.publicQuoteOut(ctx, q, acc)
+}
+
+// publicQuoteOut is the customer's view with the shared laying plans.
+func (s *server) publicQuoteOut(ctx context.Context, q *model.Quote, acc *model.Account) (*Out[PublicQuote], error) {
+	out := s.toPublicQuote(q, acc)
+	plans, err := s.publicPlans(ctx, s.db, q)
+	if err != nil {
+		return nil, dbErr(err, "plans")
+	}
+	for _, a := range plans {
+		out.Plans = append(out.Plans, PublicFile{ID: a.ID, Filename: a.Filename, ContentType: a.ContentType,
+			URL: fmt.Sprintf("/api/public/quotes/%s/files/%d", q.PublicToken, a.ID)})
+	}
+	return &Out[PublicQuote]{Body: out}, nil
 }
 
 func (s *server) decidePublicQuote(ctx context.Context, in *struct {
@@ -138,7 +161,7 @@ func (s *server) decidePublicQuote(ctx context.Context, in *struct {
 	}
 	q.State, q.DecidedAt, q.DecidedBy, q.Reason = in.Body.State, &now, name, in.Body.Reason
 	s.notifyDecision(ctx, acc, q)
-	return &Out[PublicQuote]{Body: s.toPublicQuote(q, acc)}, nil
+	return s.publicQuoteOut(ctx, q, acc)
 }
 
 // notifyDecision e-mails the firm that the customer decided (best effort).
