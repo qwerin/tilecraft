@@ -15,6 +15,35 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    id: '2026-11-23-zakazka-od-zamereni-po-fakturu',
+    date: '2026-11-23',
+    title: 'Zakázka krok za krokem: fotky, práce navíc, upravená nabídka',
+    items: [
+      { text: 'Nahoře na zakázce je přehled fází Navedení → Zhotovení → Ukončení → Faktura: co je hotové a co zbývá, s tlačítkem na další krok.' },
+      {
+        text: 'Fotky po fázích: Před, Během, Hotovo, Kladečský plán. „Vyfotit“ otevře rovnou fotoaparát a fotka se uloží podle stavu zakázky (domluvená → Před, probíhá → Během, hotová → Hotovo). Fotky z nabídky se při vzniku zakázky převezmou.',
+      },
+      { text: 'Práce a náklady navíc: tlačítka „Práce navíc“ a „Materiál / náklad navíc“ na zakázce. Parťák zapíše co a kolik, cenu doplní kancelář.' },
+      {
+        text: 'Velikost dlažby — 3 cenové tarify (malý formát, standard, velký formát). Ceny tarifů zadáte u položky v Ceníku, názvy v Nastavení → Firma; v nabídce pak velikost vyberete jedním klepnutím u řádku.',
+        for: 'managers',
+      },
+      {
+        text: 'Doplňkové práce (vykružování, kamenický roh, nika, hydroizolace, betonování, spárování) přidáte do nabídky jedním klepnutím. Které položky se tam nabízejí, určíte v Ceníku přepínačem „Rychlá volba“ — chybějící položky si do ceníku doplňte.',
+        for: 'managers',
+      },
+      { text: 'Kladečský plán (obrázek nebo PDF) nahrajete k nabídce; přepínačem „Ukázat zákazníkovi“ se zobrazí na jeho stránce i v PDF nabídky.', for: 'managers' },
+      {
+        text: 'Cestovné na zakázce jedním tlačítkem (km × počet cest, nebo paušál) a upravená nabídka s pracemi navíc: pošlete ji zákazníkovi odkazem, a když ji přijme, zapíše se to do deníku zakázky.',
+        for: 'managers',
+      },
+      {
+        text: 'Faktura odkazem: zákazník ji otevře v telefonu, zaplatí přes QR Platbu a stáhne si PDF. Odkaz je v e-mailu s fakturou a tlačítkem „Odkaz pro zákazníka“ ho pošlete i přes WhatsApp nebo SMS; uvidíte, kdy ho zákazník otevřel.',
+        for: 'managers',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-prvni-verze',
     date: '2026-11-08',
     title: 'První verze TileCraft',
