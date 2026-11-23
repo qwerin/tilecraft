@@ -76,7 +76,7 @@ až po ukázání diffu uživateli. `.env` na serveru neměň a nevypisuj (obsah
 ssh root@svobo.cz 'cd /srv/tilecraft && docker compose ps && docker logs --tail 20 tilecraft-app-1'
 #   → "listening … db=postgres", žádné ERROR/panic
 curl -s -o /dev/null -w "%{http_code}\n" https://tilecraft.svobo.cz/            # 200
-curl -s -o /dev/null -w "%{http_code}\n" https://tilecraft.svobo.cz/api/me      # 401 = API žije
+curl -s -o /dev/null -w "%{http_code}\n" https://tilecraft.svobo.cz/api/auth/me # 401 = API žije
 gh run list -L 2                                                               # stav CI
 ```
 

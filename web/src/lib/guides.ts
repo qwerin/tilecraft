@@ -7,6 +7,7 @@ import {
   BotIcon,
   CalendarDaysIcon,
   CameraIcon,
+  CarIcon,
   CheckCheckIcon,
   CheckIcon,
   CopyIcon,
@@ -14,8 +15,12 @@ import {
   EllipsisIcon,
   EllipsisVerticalIcon,
   ExternalLinkIcon,
+  EyeIcon,
+  EyeOffIcon,
   FileDownIcon,
   FileTextIcon,
+  FolderInputIcon,
+  HammerIcon,
   HardHatIcon,
   ImagePlusIcon,
   ImageUpIcon,
@@ -26,6 +31,7 @@ import {
   NavigationIcon,
   NotebookPenIcon,
   PackageCheckIcon,
+  PackagePlusIcon,
   PencilIcon,
   PhoneIcon,
   PlayIcon,
@@ -191,6 +197,15 @@ export const uiIcons: Record<string, LucideIcon> = {
   'Poslat zkušební e-mail': SendIcon,
   'Zkušební e-mail': SendIcon,
   'Nový token': PlusIcon,
+  'Práce navíc': HammerIcon,
+  'Materiál / náklad navíc': PackagePlusIcon,
+  'Cestovné': CarIcon,
+  'Doplnit cestovné': CarIcon,
+  'Vytvořit upravenou nabídku': FileTextIcon,
+  'Aktualizovat podle zakázky': FileTextIcon,
+  'Ukázat zákazníkovi v nabídce': EyeIcon,
+  'Skrýt před zákazníkem': EyeOffIcon,
+  'Přesunout do': FolderInputIcon,
 }
 
 export const guides: Guide[] = [
@@ -223,6 +238,7 @@ export const guides: Guide[] = [
           'Logo: [[Nahrát logo]] (PNG, JPEG, WebP nebo GIF do 2 MB). Logo se uloží hned a tiskne se na nabídky a faktury.',
           'Bankovní spojení: vyplňte Číslo účtu (např. 123456789/0100) nebo IBAN — stačí jedno. Z něj se na fakturách tvoří QR Platba.',
           'DPH: přepínač [[Jsem plátce DPH]] nechte vypnutý, pokud plátce nejste (doklady pak mají text „Nejsem plátce DPH.“). Plátce zvolí Výchozí sazbu DPH nových nabídek: 12 % (byty a rodinné domy), 21 % nebo 0 % (PDP).',
+          'Velikost dlažby — cenové tarify: názvy tří tarifů (výchozí Malý formát do 30×30, Standard do 60×60, Velký formát nad 60×60). Přejmenujte je podle toho, jak počítáte; prázdné pole = výchozí název.',
           'Dole stiskněte [[Uložit změny]].',
         ],
         tips: [
@@ -414,6 +430,39 @@ export const guides: Guide[] = [
         ],
       },
       {
+        id: 'doplnkove',
+        title: 'Doplňkové práce jedním klepnutím',
+        text: 'Nad sekcemi je řada „Doplňkové práce — klepnutím přidáte řádek“: vykružování, kamenický roh, nika, hydroizolace, betonování, spárování… Klepnutí přidá řádek z ceníku; přidaná práce má u tlačítka fajfku (a počet, když je víckrát). Množství doplňte (u položek ze zaměření se spočítá samo).',
+        tips: ['Které práce v řadě jsou, určíte v Ceníku přepínačem „Rychlá volba“ u položky.'],
+      },
+      {
+        id: 'velikost',
+        title: 'Velikost dlažby (3 tarify)',
+        steps: [
+          'U řádku, jehož položka má v ceníku ceny podle velikosti, jsou pod názvem tři volby: Malý formát, Standard, Velký formát (názvy podle Nastavení → Firma).',
+          'Klepnutím vyberete velikost a Cena / jedn. se přepíše cenou tarifu. Dalším klepnutím volbu zrušíte.',
+          'U jiného řádku nastavíte velikost v podrobnostech řádku [[⚙]] → Velikost dlažby (pak je to jen popisek).',
+        ],
+        tips: [
+          'Podlaha a stěny mají často jiný formát — velikost se volí u každého řádku zvlášť.',
+          'Název tarifu se tiskne u řádku v nabídce, v PDF i na faktuře.',
+        ],
+      },
+      {
+        id: 'fotky',
+        title: 'Fotky a kladečský plán',
+        steps: [
+          'V panelu Fotky a kladečský plán zvolte v „Nahrát do:“ Před (původní stav), Kladečský plán (obrázek nebo PDF) nebo Ostatní.',
+          '[[Vyfotit]] otevře fotoaparát, [[Nahrát]] vybere soubor.',
+          'Kladečský plán zákazníkovi ukážete v menu souboru ([[⋮]] na náhledu) → [[Ukázat zákazníkovi v nabídce]]; plán má pak štítek „zákazník“. Zpět [[Skrýt před zákazníkem]].',
+          'Jinou kategorii nastavíte tamtéž přes [[Přesunout do]].',
+        ],
+        tips: [
+          'Sdílený plán je na stránce pro zákazníka i v PDF nabídky (obrázek na samostatné straně, plán ve formátu PDF jako odkaz na online nabídku).',
+          'Když z nabídky vznikne zakázka, fotky i plán se k ní připojí.',
+        ],
+      },
+      {
         id: 'mnozstvi',
         title: 'Množství ze zaměření, nebo ručně',
         text: 'Řádek „ze zaměření“ má u množství ikonu pravítka a podbarvené pole. Množství se počítá ze zaměření a přepočítá se při každé jeho změně.',
@@ -529,7 +578,7 @@ export const guides: Guide[] = [
         id: 'zakaznik',
         title: 'Co vidí a dělá zákazník',
         steps: [
-          'Odkaz otevře stránku bez přihlášení: vaše logo a kontakt, položky po sekcích, součty, Poznámka, Podmínky a (když jste zapnuli) Zaměření.',
+          'Odkaz otevře stránku bez přihlášení: vaše logo a kontakt, položky po sekcích, součty, Poznámka, Podmínky a (když jste zapnuli) Zaměření a Kladečský plán.',
           'Tlačítkem [[Stáhnout PDF]] si stáhne nabídku. V PDF je QR kód, který vede na stejnou stránku.',
           'Dole má [[Odmítám]] a [[Přijímám nabídku]]. Vyplní Vaše jméno a Vzkaz nebo Důvod (nepovinné) a potvrdí.',
         ],
@@ -619,24 +668,27 @@ export const guides: Guide[] = [
       },
       {
         id: 'stavy',
-        title: 'Stavy zakázky',
-        text: 'Průběh nahoře v zakázce i štítky v seznamu: Domluvená → Probíhá → Hotová → Vyfakturovaná.',
+        title: 'Fáze a stavy zakázky',
+        text: 'Nahoře v zakázce jsou čtyři fáze Navedení → Zhotovení → Ukončení → Faktura s kontrolním seznamem (zaměření, přijatá nabídka, termín, fotky, práce navíc, deník, cestovné, upravená nabídka, zálohy, faktura). Zelená fajfka = hotovo, prázdné kolečko = zbývá; klepnutím na bod se přesunete na příslušný panel. Stavy ve štítcích: Domluvená → Probíhá → Hotová → Vyfakturovaná.',
         steps: [
           'Velké tlačítko vždy nabízí další krok: [[Zahájit práci]] → [[Hotovo]] → [[Vyfakturovat]].',
           'Omyl vrátíte malým tlačítkem [[Vrátit na domluvenou]] nebo [[Vrátit do realizace]].',
           'Do stavu Vyfakturováno se zakázka dostane sama po vystavení konečné faktury.',
-          'Zrušení: [[⋮]] → Zrušit zakázku; zpět [[Obnovit zakázku]]. [[Smazat zakázku]] jde jen bez faktur (smaže fotky a deník, nabídka zůstane).',
+          'Zrušení: [[⋮]] → Zrušit zakázku; zpět [[Obnovit zakázku]]. [[Smazat zakázku]] jde jen bez faktur (smaže fotky zakázky a deník; nabídka i její fotky a plán zůstanou).',
         ],
       },
       {
         id: 'fotky',
         title: 'Fotky ze stavby',
         steps: [
+          'Fotky jsou po fázích: Před, Během, Hotovo, Kladečský plán, Ostatní. V „Nahrát do:“ je předvybraná fáze podle stavu zakázky (domluvená → Před, probíhá → Během, hotová → Hotovo).',
           '[[Vyfotit]] otevře fotoaparát telefonu, [[Nahrát]] vybere fotky z galerie (i video nebo PDF).',
-          'Klepnutím na fotku ji zvětšíte přes celou obrazovku.',
-          'Smazat jde přes ikonu koše na fotce (parťák jen své fotky).',
+          'Klepnutím na fotku ji zvětšíte přes celou obrazovku. V menu fotky ([[⋮]] na náhledu) ji [[Přesunout do]] jiné fáze nebo smažete (parťák jen své fotky).',
         ],
-        tips: ['Foťte stav před, během a po práci — hodí se při reklamaci i jako ukázka práce.'],
+        tips: [
+          'Fotky a kladečský plán z nabídky se k zakázce připojí samy.',
+          'Foťte stav před, během a po práci — hodí se při reklamaci i jako ukázka práce. Počty fotek ukazuje kontrolní seznam fází.',
+        ],
       },
       {
         id: 'denik',
@@ -653,6 +705,38 @@ export const guides: Guide[] = [
           'Panel Srovnání s nabídkou ukáže Nabídka / Skutečnost / Rozdíl po sekcích. Fakturuje se podle skutečnosti.',
         ],
         warnings: ['Po vyfakturování už položky upravit nejdou.'],
+      },
+      {
+        id: 'navic',
+        title: 'Práce a náklady navíc',
+        steps: [
+          'V panelu Položky klepněte na [[Práce navíc]] nebo [[Materiál / náklad navíc]].',
+          'Vyplňte Co se dělalo (Co se koupilo / navíc), Množství, Jednotku a Cenu za jednotku; bez ceny = k nacenění později. Potvrďte [[Zapsat]].',
+          'Řádky navíc jsou v Položkách zvlášť ve skupině „Práce a náklady navíc“; i [[Upravit položky]] má dvě skupiny: Položky podle nabídky a Práce a náklady navíc (co přidáte do druhé, je navíc).',
+          'Zápisy parťáků mají cenu 0 a štítek „k nacenění“ — cenu doplníte v [[Upravit položky]].',
+        ],
+        tips: ['Srovnání s nabídkou ukáže „Z toho navíc“. Řádky navíc se normálně fakturují.'],
+      },
+      {
+        id: 'cestovne',
+        title: 'Cestovné',
+        steps: [
+          'Klepněte na [[Doplnit cestovné]] (v hotové zakázce nahoře) nebo [[Cestovné]] v panelu Položky.',
+          'Podle km: Km za cestu × Počet cest × Cena za km (předvyplní se z položky „Cestovné“ v ceníku). Nebo Paušál: jedna částka.',
+          '[[Uložit]] vytvoří nebo přepíše řádek „Cestovné“ v sekci Ostatní; [[Odebrat]] ho smaže.',
+        ],
+      },
+      {
+        id: 'upravena',
+        title: 'Upravená nabídka (vícepráce)',
+        steps: [
+          'Když se zakázka liší od nabídky (práce navíc, jiné množství), klepněte v hotové zakázce nahoře na [[Vytvořit upravenou nabídku]].',
+          'Vznikne nová nabídka „… – upravená nabídka (vícepráce)“ s položkami zakázky; řádky navíc jsou označené „navíc“.',
+          'Pošlete ji zákazníkovi jako každou nabídku: [[Odeslat]] e-mailem nebo odkazem přes WhatsApp či SMS.',
+          'Zákazník na stránce vidí, že jde o aktualizaci původní nabídky, a může ji přijmout. Přijetí se zapíše do deníku zakázky; nová zakázka nevzniká.',
+          'Změnili jste ještě něco? Dokud upravenou nabídku nepošlete, [[Aktualizovat podle zakázky]] ji přepíše podle aktuálních položek.',
+        ],
+        tips: ['Fakturuje se dál ze zakázky ([[Vyfakturovat]]); přijetí upravené nabídky není podmínkou.'],
       },
       {
         id: 'kontakt',
@@ -697,7 +781,7 @@ export const guides: Guide[] = [
       {
         id: 'fotky',
         title: 'Fotky',
-        text: '[[Vyfotit]] otevře fotoaparát, [[Nahrát]] vybere fotky z galerie. Foťte stav před, během a po práci. Své fotky můžete smazat ikonou koše.',
+        text: '[[Vyfotit]] otevře fotoaparát, [[Nahrát]] vybere fotky z galerie. Fotka se uloží do fáze podle stavu zakázky (Před, Během, Hotovo); jinou zvolíte v „Nahrát do:“. Foťte stav před, během a po práci. Své fotky můžete přesunout nebo smazat v menu [[⋮]] na náhledu.',
       },
       {
         id: 'denik',
@@ -705,9 +789,18 @@ export const guides: Guide[] = [
         text: 'Napište, co se dnes udělalo a co chybí (např. „chybí 2 lišty, dovézt silikon“), a klepněte na [[Zapsat]]. Kancelář to hned vidí.',
       },
       {
+        id: 'navic',
+        title: 'Práce navíc',
+        steps: [
+          'Udělali jste něco, co v zakázce není (oprava omítky, vyrovnání podlahy, lepidlo navíc)? V panelu Položky klepněte na [[Práce navíc]] nebo [[Materiál / náklad navíc]].',
+          'Napište co a kolik (Množství, Jednotka), případně Poznámku, a [[Zapsat]]. Cenu doplní kancelář.',
+        ],
+        tips: ['Zápis navíc už sami nezměníte ani nesmažete — když se spletete, napište to do deníku.'],
+      },
+      {
         id: 'ceny',
         title: 'Co parťák vidí a nevidí',
-        text: 'Vidíte položky zakázky s množstvím (kolik m² obkladu, dlažby, kolik bm lišt) a zaměření po místnostech. Nevidíte ceny, nabídky, faktury, ceník ani zákazníky. Položky měnit nemůžete — když se něco liší, napište to do deníku.',
+        text: 'Vidíte položky zakázky s množstvím (kolik m² obkladu, dlažby, kolik bm lišt) a zaměření po místnostech. Nevidíte ceny, nabídky, faktury, ceník ani zákazníky. Položky měnit nemůžete, jen přidat práci navíc — když se něco liší, napište to do deníku.',
       },
     ],
     links: [
@@ -845,6 +938,22 @@ export const guides: Guide[] = [
           'Množství v nabídce: „Zadává se ručně“ nebo „Ze zaměření: …“. Prořez (%) jde nastavit jen u položek ze zaměření.',
           'Potvrďte [[Přidat]] nebo [[Uložit]].',
         ],
+      },
+      {
+        id: 'tarify',
+        title: 'Cena podle velikosti dlažby',
+        steps: [
+          'V položce (typicky montáž dlažby a obkladu) zapněte „Cena podle velikosti dlažby (3 tarify)“ a vyplňte tři ceny.',
+          'Prodejní cena nahoře platí, když v nabídce velikost nevyberete.',
+          'Názvy tarifů změníte v Nastavení → Firma (Velikost dlažby — cenové tarify).',
+        ],
+        tips: ['V seznamu ceníku jsou u položky vidět všechny tři ceny.'],
+      },
+      {
+        id: 'rychla',
+        title: 'Rychlá volba (doplňkové práce)',
+        text: 'Přepínač „Rychlá volba“ v položce z ní udělá tlačítko v řadě Doplňkové práce v nabídce — vykružování, kamenický roh, nika, hydroizolace, betonování, spárování a cokoli dalšího, co přidáváte často. Položka má v ceníku štítek „rychlá volba“.',
+        tips: ['Nové firmy tyto položky v ceníku už mají. Ve starším ceníku si chybějící doplňte přes [[Nová položka]] a zapněte jim Rychlou volbu.'],
       },
       {
         id: 'mereni',
