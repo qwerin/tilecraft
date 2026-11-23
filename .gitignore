@@ -10,3 +10,5 @@ web/.tanstack/
 # podklady zákazníků (fotky papírových nabídek) a pracovní kopie — repo je veřejné
 /podklady/
 /.old/
+# pracovní kopie agentů Claude Code
+/.claude/worktrees/
