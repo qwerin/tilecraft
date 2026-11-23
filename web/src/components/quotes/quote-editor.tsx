@@ -17,9 +17,11 @@ import {
 } from 'lucide-react'
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
+import { previousPlans, savePlanImage } from '@/api/attachments'
 import { useCatalog } from '@/api/catalog'
 import type { Customer } from '@/api/customers'
 import { customerAddress } from '@/api/customers'
+import { errorMessage } from '@/api/errors'
 import { useFirmMutation } from '@/api/queries'
 import { quoteMutations, quotePdfUrl, type Quote, type QuoteInput } from '@/api/quotes'
 import type { Account } from '@/api/types'
@@ -177,16 +179,16 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
     void to()
   }
 
-  const validate = (): boolean => {
-    if (!form.customer) {
+  const validate = (f: Form = form): boolean => {
+    if (!f.customer) {
       toast.error('Vyberte nebo založte zákazníka.')
       return false
     }
-    if (duplicateRoomNames(form.rooms).size > 0) {
+    if (duplicateRoomNames(f.rooms).size > 0) {
       toast.error('Každá místnost musí mít jiný (a neprázdný) název.')
       return false
     }
-    if (form.lines.some((l) => !l.name.trim())) {
+    if (f.lines.some((l) => !l.name.trim())) {
       toast.error('Každá položka musí mít název.')
       return false
     }
@@ -194,17 +196,18 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
   }
 
   /** Uloží; vrací uloženou nabídku (nebo null při chybě). */
-  const save = async (): Promise<Quote | null> => {
-    if (!validate()) return null
+  const save = async (f: Form = form): Promise<Quote | null> => {
+    if (!validate(f)) return null
+    const body = f === form ? input : toInput(f)
     try {
       if (quote) {
-        const saved = await update.mutateAsync({ id: quote.id, body: input })
+        const saved = await update.mutateAsync({ id: quote.id, body })
         qc.setQueryData([slug, 'quotes', saved.id], saved)
         setForm((f) => ({ ...f, title: f.title.trim() || saved.title }))
         setBaseline(JSON.stringify(toInput(formFromQuote(saved))))
         return saved
       }
-      const saved = await create.mutateAsync(input)
+      const saved = await create.mutateAsync(body)
       qc.setQueryData([slug, 'quotes', saved.id], saved)
       go(() => navigate({ to: '/a/$slug/quotes/$id', params: { slug, id: String(saved.id) }, replace: true }))
       return saved
@@ -216,6 +219,27 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
   const onSave = async () => {
     const saved = await save()
     if (saved) toast.success(isNew ? `Nabídka ${saved.number} založena` : 'Uloženo')
+  }
+
+  /** Kladečský plán z editoru zaměření: uloží nabídku s plánem (není-li zamčená) a nahraje obrázek místnosti. */
+  const savePlan = async (rooms: Room[], file: File, shared: boolean): Promise<boolean> => {
+    let target = quote ?? null
+    if (!locked) {
+      const next = { ...form, rooms, lines: syncLinesWithRooms(form.lines, form.rooms, rooms) }
+      setForm(next)
+      target = await save(next)
+    }
+    if (!target) return false
+    const t = { kind: 'quotes' as const, id: target.id }
+    try {
+      await savePlanImage(slug, t, file, shared, previousPlans(target.attachments, t, file.name))
+      await Promise.all([qc.invalidateQueries({ queryKey: [slug, 'quotes'] }), qc.invalidateQueries({ queryKey: [slug, 'jobs'] })])
+      toast.success(shared ? 'Kladečský plán uložen, zákazník ho uvidí v nabídce' : 'Kladečský plán uložen do příloh nabídky')
+      return true
+    } catch (e) {
+      toast.error(errorMessage(e))
+      return false
+    }
   }
 
   const ensureSaved = async () => !dirty || (await save()) !== null
@@ -413,6 +437,13 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
               value={form.rooms}
               readOnly={locked}
               onChange={(rooms) => setForm((f) => ({ ...f, rooms, lines: syncLinesWithRooms(f.lines, f.rooms, rooms) }))}
+              plan={{
+                onSave: savePlan,
+                canShare: true,
+                sharedBefore: (name) => quote?.attachments.find((a) => a.category === 'plan' && a.filename === name)?.shared,
+                subtitle: [form.title.trim() || autoTitle(form), form.site_address.trim()].filter(Boolean).join(' · '),
+                disabledReason: !form.customer ? 'Nejdřív vyberte zákazníka a nabídku uložte.' : undefined,
+              }}
             />
           </Panel>
 

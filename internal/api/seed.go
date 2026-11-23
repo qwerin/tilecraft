@@ -121,12 +121,20 @@ func seedDemo(ctx context.Context, s *server, db *gorm.DB) error {
 	}
 
 	// the paper bathroom (SPEC §0)
+	// with a laying plan (SPEC §5.6): 60×60 floor, 30×60 walls, offsets from „Optimalizovat řezy“
+	wallTiles := func(dx, dy float64) *calc.Layout {
+		return &calc.Layout{TileW: 30, TileH: 60, Grout: 2, Pattern: calc.PatternStraight, AlignX: "center", AlignY: "bottom", OffsetX: dx, OffsetY: dy}
+	}
 	bathroom := []calc.Room{{Name: "Koupelna", Surfaces: []calc.Surface{
-		{Name: "Podlaha", Kind: calc.KindFloor, Width: 2.95, Height: 1.56},
-		{Name: "Stěna za vanou", Kind: calc.KindWall, Width: 2.95, Height: 2.1},
-		{Name: "Stěna u dveří", Kind: calc.KindWall, Width: 2.95, Height: 2.1, Deductions: []calc.Deduction{{Name: "Dveře", Width: 0.8, Height: 1.97}}},
-		{Name: "Boční stěna", Kind: calc.KindWall, Width: 1.56, Height: 2.1},
-		{Name: "Boční stěna u okna", Kind: calc.KindWall, Width: 1.56, Height: 2.1, Deductions: []calc.Deduction{{Name: "Okno", Width: 0.9, Height: 0.6}}},
+		{Name: "Podlaha", Kind: calc.KindFloor, Width: 2.95, Height: 1.56,
+			Layout: &calc.Layout{TileW: 60, TileH: 60, Grout: 2, Pattern: calc.PatternStraight, AlignX: "center", AlignY: "center"}},
+		{Name: "Stěna za vanou", Kind: calc.KindWall, Width: 2.95, Height: 2.1, Layout: wallTiles(0, -15.5),
+			Deductions: []calc.Deduction{{Name: "Vana", Width: 1.7, Height: 0.55, X: ptr(0.0), Y: ptr(0.0)}}},
+		{Name: "Stěna u dveří", Kind: calc.KindWall, Width: 2.95, Height: 2.1, Layout: wallTiles(11.5, -15.5),
+			Deductions: []calc.Deduction{{Name: "Dveře", Width: 0.8, Height: 1.97, X: ptr(1.95), Y: ptr(0.0)}}},
+		{Name: "Boční stěna", Kind: calc.KindWall, Width: 1.56, Height: 2.1, Layout: wallTiles(15, -15.5)},
+		{Name: "Boční stěna u okna", Kind: calc.KindWall, Width: 1.56, Height: 2.1, Layout: wallTiles(15, -0.5),
+			Deductions: []calc.Deduction{{Name: "Okno", Width: 0.9, Height: 0.6, X: ptr(0.33), Y: ptr(1.2)}}},
 		{Name: "Lišta", Kind: calc.KindLength, Width: 6.25},
 		{Name: "Vykružování", Kind: calc.KindPiece, Count: 14},
 	}}, {Name: "WC", Surfaces: []calc.Surface{

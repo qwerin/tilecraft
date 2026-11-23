@@ -58,7 +58,8 @@ export function uploadLogo(slug: string, file: File) {
 }
 
 /** Nahraje soubory multipartem (mimo OpenAPI) — po jednom: fotky z telefonu mají několik MB a limit požadavku je 50 MB. */
-export async function uploadTo(url: string, files: File[]) {
+export async function uploadTo<T = unknown>(url: string, files: File[]): Promise<T[]> {
+  const out: T[] = []
   for (const f of files) {
     const body = new FormData()
     body.append('file', f, f.name || `foto-${Date.now()}.jpg`)
@@ -67,7 +68,11 @@ export async function uploadTo(url: string, files: File[]) {
       const problem = (await res.json().catch(() => ({ title: res.statusText }))) as Problem
       throw new ApiError(res.status, problem)
     }
+    const saved = (await res.json().catch(() => null)) as T[] | T | null
+    if (Array.isArray(saved)) out.push(...saved)
+    else if (saved) out.push(saved)
   }
+  return out
 }
 
 export function attachmentUrl(slug: string, id: number, inline = false) {

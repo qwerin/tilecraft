@@ -11,6 +11,23 @@ export interface Deduction {
   width: number
   height: number
   count?: number // 0/undefined = 1
+  /** Kladečský plán: poloha v m zleva a odspodu (stěna: od podlahy, podlaha: od horního okraje výkresu); jen kreslení. */
+  x?: number
+  y?: number
+}
+
+/** Kladečský plán plochy (SPEC §5.6) — server ho jen ukládá, počítá web/src/lib/tile-layout.ts. */
+export interface Layout {
+  tile_w: number // cm, vodorovně ve výkresu
+  tile_h: number // cm, svisle
+  grout: number // mm
+  pattern?: 'straight' | 'half' | 'third'
+  align_x?: 'left' | 'center' | 'right'
+  align_y?: 'top' | 'center' | 'bottom'
+  offset_x?: number // cm doprava
+  offset_y?: number // cm nahoru
+  waste?: number // % prořezu (výchozí 10, vazba 15)
+  box_m2?: number // m² v balení
 }
 
 export interface Surface {
@@ -21,6 +38,7 @@ export interface Surface {
   count?: number // 0/undefined = 1
   area?: number // manual area (irregular shape) instead of width × height
   deductions?: Deduction[] | null
+  layout?: Layout
 }
 
 export interface Room {

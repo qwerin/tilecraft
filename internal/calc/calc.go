@@ -34,6 +34,32 @@ type Deduction struct {
 	Width  float64 `json:"width"`
 	Height float64 `json:"height"`
 	Count  int     `json:"count,omitempty"` // 0 = 1
+	// Position in the laying plan (SPEC §5.6), metres from the left edge and from the bottom (wall: the floor;
+	// floor: the top edge of the drawing). nil = placed automatically. Only drawing — the area does not change.
+	X *float64 `json:"x,omitempty" doc:"Laying plan only: metres from the left edge of the surface (nil = automatic)"`
+	Y *float64 `json:"y,omitempty" doc:"Laying plan only: metres from the floor (wall) or from the top edge (floor); nil = automatic"`
+}
+
+// Tile patterns of a laying plan.
+const (
+	PatternStraight = "straight" // rovně (spára na spáru)
+	PatternHalf     = "half"     // na vazbu ½
+	PatternThird    = "third"    // na vazbu ⅓
+)
+
+// Layout is the laying plan of a floor or wall (kladečský plán, SPEC §5.6): the tile, the joint and where
+// the tiling starts. The app only stores it; the drawing, counts and cuts are computed by the web app.
+type Layout struct {
+	TileW   float64  `json:"tile_w" doc:"Tile width in cm (horizontal in the drawing), e.g. 60"`
+	TileH   float64  `json:"tile_h" doc:"Tile height in cm (vertical in the drawing), e.g. 30; swap with tile_w to turn the tile"`
+	Grout   float64  `json:"grout" doc:"Joint (spára) in mm, e.g. 2 or 3"`
+	Pattern string   `json:"pattern,omitempty" enum:"straight,half,third" doc:"straight (default), half = running bond ½, third = bond ⅓"`
+	AlignX  string   `json:"align_x,omitempty" enum:"left,center,right" doc:"Where a whole tile starts horizontally (default center)"`
+	AlignY  string   `json:"align_y,omitempty" enum:"top,center,bottom" doc:"Where a whole tile starts vertically (default: wall bottom = floor, floor center)"`
+	OffsetX float64  `json:"offset_x,omitempty" doc:"Shift of the tiles to the right in cm"`
+	OffsetY float64  `json:"offset_y,omitempty" doc:"Shift of the tiles up in cm"`
+	Waste   *float64 `json:"waste,omitempty" doc:"Waste % for the purchase (default 10, bond 15)"`
+	BoxM2   float64  `json:"box_m2,omitempty" doc:"m² in one box of tiles (to count boxes), 0 = unknown"`
 }
 
 // Surface is one measured surface of a room.
@@ -45,6 +71,7 @@ type Surface struct {
 	Count      int         `json:"count,omitempty"` // 0 = 1
 	Area       *float64    `json:"area,omitempty"`  // manual area (irregular shape) instead of width × height
 	Deductions []Deduction `json:"deductions,omitempty"`
+	Layout     *Layout     `json:"layout,omitempty" doc:"Laying plan (floor, wall): tile size, joint, pattern, start"`
 }
 
 // Room is a measured room.

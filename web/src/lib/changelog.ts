@@ -15,6 +15,26 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    id: '2026-11-23-kladecsky-plan',
+    date: '2026-11-23',
+    title: 'Kladečský plán nakreslí aplikace',
+    items: [
+      {
+        text: 'U podlahy nebo stěny v zaměření je tlačítko „Kladečský plán“: zadáte formát dlaždic, spáru, vzor (rovně, na vazbu) a odkud se klade — aplikace nakreslí dlaždice s řezy, dveřmi, oknem a vanou a spočítá celé a řezané kusy i kolik koupit.',
+        for: 'managers',
+      },
+      {
+        text: 'Úzké řezy (pod ⅓ dlaždice) jsou červeně; „Optimalizovat řezy“ posune dlaždice tak, aby u krajů i kolem otvorů zbyly co nejširší kusy.',
+        for: 'managers',
+      },
+      {
+        text: '„Uložit jako kladečský plán“ přidá obrázek celé místnosti do příloh nabídky — zákazník ho uvidí v nabídce i v PDF. U zakázky se plán uloží do fotek a uvidí ho i parťák.',
+        for: 'managers',
+      },
+      { text: 'Nakreslený kladečský plán najdete ve fotkách zakázky v kategorii Kladečský plán.' },
+    ],
+  },
+  {
     id: '2026-11-23-zakazka-od-zamereni-po-fakturu',
     date: '2026-11-23',
     title: 'Zakázka krok za krokem: fotky, práce navíc, upravená nabídka',

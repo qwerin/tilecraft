@@ -84,11 +84,13 @@ a kladečský plán, nahrává kancelář).
 
 ### 5.1 Zaměření
 
-`rooms[]` → `{name, surfaces[]}`, plocha `surface = {name, kind, width, height, count, area, deductions[]}`:
+`rooms[]` → `{name, surfaces[]}`, plocha `surface = {name, kind, width, height, count, area, deductions[], layout?}`
+(`layout` = kladečský plán, §5.6):
 
 - `kind`: `floor` (podlaha), `wall` (stěna), `length` (délkový prvek: lišta, sokl, hrana — jen `width` = délka v m),
   `piece` (kusy: vykružování, rohy — `count`).
-- Plocha = `width × height × count − Σ odpočty` (okna, dveře, vana: `{name, width, height, count}`), zaokrouhleno na 0,01 m².
+- Plocha = `width × height × count − Σ odpočty` (okna, dveře, vana: `{name, width, height, count, x?, y?}`), zaokrouhleno na 0,01 m².
+  `x`, `y` = poloha odpočtu pro náčrt a kladečský plán (§5.6), na plochu nemají vliv.
   `area` vyplněné ručně má přednost (nepravidelný tvar).
 - Obvod podlahy = `2 × (width + height) × count` (pro lišty / sokl / hydroizolační pásku).
 - Rozměry v metrech s přesností na cm; mobilní formulář bere i centimetry (`295` → 2,95).
@@ -136,6 +138,38 @@ množství `measure` zruší.
 ### 5.5 Kopie
 
 „Duplikovat“ udělá novou rozpracovanou nabídku (varianta: dražší obklad, bez materiálu…). Fotky a plán se nekopírují.
+
+### 5.6 Kladečský plán (nakreslený)
+
+Obkladač si u podlahy nebo stěny (zadané rozměry, ne plochou) nakreslí rozložení dlaždic. Plán je součást zaměření
+(`surface.layout`, ukládá se s nabídkou i zakázkou, kopíruje se s nimi); server ho jen validuje, kreslí a počítá web
+(`web/src/lib/tile-layout.ts`, výkres `doc-editor/laying-plan.ts`).
+
+`layout = {tile_w, tile_h (cm), grout (mm), pattern, align_x, align_y, offset_x, offset_y (cm), waste (%), box_m2}`:
+
+- **Dlaždice** šířka × výška ve výkresu (otočení = prohození, žádné zvláštní pole), předvolby 10×10 … 60×120, 20×120.
+- **Spára** v mm jen mezi dlaždicemi (u kraje / u otvoru žádná — tam je silikon).
+- **Vzor** `straight` (rovně), `half` (na vazbu ½), `third` (na vazbu ⅓); posun vazby je vždy po řadách (vodorovně).
+  Diagonála ani rybí kost zatím nejsou.
+- **Začátek kladení**: celá „počáteční“ dlaždice (modře) zleva / na střed / zprava a od podlahy / na střed / od stropu
+  (podlaha: nahoře / na střed / dole ve výkresu); výchozí stěna na střed od podlahy, podlaha na střed. `offset_x` (doprava)
+  a `offset_y` (nahoru) dolaďují v cm.
+- **Vycentrovat**: na střed v obou směrech, dlaždice nebo spára na ose — co dá širší krajní řezy (stejné na obou stranách).
+  **Optimalizovat řezy**: posun, při kterém je nejužší řez u krajů i u hran otvorů co nejširší (krok 5 mm), pak méně řezů,
+  pak souměrnost. Hrana otvoru blíž ke kraji než dlaždice (nadpraží dveří) se nezohlední — zbytek je daný rozměry.
+- **Otvory** (odpočty) se kreslí šrafovaně a neobkládají se: dlaždice celá pod otvorem se nepočítá, částečně zakrytá je řezaná.
+  Poloha je automatická (dveře a vana dole, vana vlevo, okno s parapetem 0,9 m, jinak na střed) nebo zadaná (`x` zleva,
+  `y` od podlahy / u podlahy od horního okraje výkresu) — jen u odpočtu s jedním kusem.
+- **Výsledek**: celé / řezané dlaždice na výkresu, nejužší řez, **úzký řez** = zbytek užší než ⅓ dlaždice v daném směru
+  (červeně + upozornění). Zbytek mezi otvorem a krajem užší než dlaždice (pruh nad dveřmi) se za úzký nepovažuje.
+  Krajní řezy jsou okótované v cm. Nákup: čistá plocha × (1 + prořez; výchozí 10 %, na vazbu 15 %) → m² → kusy dlaždic
+  → balení (když je zadané m² v balení). Stěna „× 2“ se kreslí jako dvě stěny (do 4), podlaha × N jednou a počty se násobí.
+- **Uložit jako kladečský plán**: uloží zaměření (nabídku / zakázku) a nahraje list celé místnosti jako PNG do příloh,
+  kategorie `plan`, soubor `kladecsky-plan-<místnost>.png`; předchozí obrázek téže místnosti se smaže (u zakázky jen vlastní,
+  ne soubor převzatý z nabídky). U nabídky přepínač **Ukázat zákazníkovi** (výchozí jako předchozí verze, jinak ano) —
+  obrázek se pak ukáže na `/n/{token}` a v PDF nabídky jako každý sdílený plán (§5.4). Přijatá nabídka: jen obrázek.
+- Plán kreslí kancelář (editor nabídky, „Upravit položky“ zakázky); parťák vidí obrázek ve fotkách zakázky.
+- MCP: `create_quote` / `update_quote` přijímají `layout` a `x`, `y` (schéma z `rooms`), popis zmiňuje, že se nemění plochy.
 
 ## 6. Zakázka (`Job`)
 
@@ -277,3 +311,13 @@ Tailwind 4 + shadcn (base-ui), PWA (instalace na telefon), openapi-typescript. D
 13. Cestovné: počítá obkladač km tam i zpět za každý den na stavbě, nebo paušál za zakázku? (Teď obojí, km × počet cest.)
    Patří cestovné do první nabídky (pak není „navíc“), nebo se doplňuje až při ukončení?
 14. Přijetí upravené nabídky zapisujeme do deníku zakázky pod autorem upravené nabídky (deník potřebuje uživatele).
+15. Kladečský plán (§5.6) — otázky na obkladače:
+   - Úzký řez: platí pravidlo „ne užší než ⅓ dlaždice“, nebo spíš pevná hranice (např. 5 cm) / ½ dlaždice u velkých formátů?
+   - Stěny: chce obvykle celou řadu u podlahy (soklová řada), nebo celou nahoře u stropu / u horní hrany obkladu?
+     „Optimalizovat řezy“ teď rozdělí řez nahoru i dolů.
+   - Kladení od osy okna / dveří / vany (dlaždice souměrně podle otvoru) — teď jen přes posun nebo optimalizaci.
+   - Je potřeba diagonála, rybí kost, vazba na výšku (svislé posuny) nebo dekor / listela v určité výšce?
+   - Navazování spár mezi stěnami v rohu (stejná výška řad na všech stěnách) a podlaha ↔ stěna — teď se každá plocha
+     nastavuje zvlášť (nová plocha převezme dlaždici z poslední nastavené stejného druhu).
+   - Mají se kusy / m² z plánu propsat do řádku materiálu (obklad, dlažba), nebo stačí informace v plánu?
+   - Ukazovat plán zákazníkovi po místnostech (teď jeden obrázek na místnost), nebo po plochách?

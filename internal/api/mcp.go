@@ -105,12 +105,15 @@ var mcpTools = []mcpTool{
 		Description: "Create a draft quote from a measurement (a sketch photo, dictated dimensions). rooms[]: {name, surfaces[]}; surface {name, kind: floor|wall|length|piece, " +
 			"width, height in METRES (295 cm = 2.95), count, area (m², only for irregular shapes instead of width×height), deductions[] (doors, windows, bathtub: width, height)}. " +
 			"Wall surface = one wall: width = wall length, height = tiling height. length = linear element (trim, skirting; width = length in m). piece = count (holes to drill). " +
+			"Optional laying plan (only when the user names the tiles): surface.layout {tile_w, tile_h in cm, grout in mm, pattern straight|half|third, " +
+			"align_x left|center|right, align_y top|center|bottom (wall default bottom = from the floor)} and deduction x, y in metres (from the left, from the floor); " +
+			"the web app draws it, it never changes areas or prices. " +
 			"lines[]: prefer {catalog_item_id} — name, unit, price, discount, measure and waste come from the price list; a line with a measure gets its quantity from the rooms " +
 			"(rooms = restrict to named rooms); lines without a measure need quantity. Items with tier_prices: tier 1–3 by the tile size the user names " +
 			"(the price comes from the tier; ask when the size is unknown). Material the customer buys: customer_supplied=true (listed, 0 Kč). " +
 			"Free lines without catalog item: name, unit, quantity, unit_price (haléře), section. After creating, show the user the totals and app_url; the user reviews and sends it."},
 	{Name: "update_quote", Title: "Upravit nabídku", Method: http.MethodPut, Path: "/quotes/{id}", Write: true,
-		Description: "Replace a draft or sent quote (PUT: load it with get_quote and send the complete quote: rooms and ALL lines; unchanged lines can keep catalog_item_id with their quantity/price). Decided quotes are locked."},
+		Description: "Replace a draft or sent quote (PUT: load it with get_quote and send the complete quote: rooms and ALL lines; unchanged lines can keep catalog_item_id with their quantity/price). Decided quotes are locked. Keep surface.layout and deduction x/y (laying plan) as loaded."},
 	{Name: "duplicate_quote", Title: "Kopie nabídky", Method: http.MethodPost, Path: "/quotes/{id}/duplicate", Write: true,
 		Description: "Copy a quote as a new draft (a variant: other tiles, without material …)."},
 	{Name: "list_jobs", Title: "Zakázky", Method: http.MethodGet, Path: "/jobs",

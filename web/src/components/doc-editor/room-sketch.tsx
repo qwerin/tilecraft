@@ -1,8 +1,9 @@
 // Náčrt místnosti ze zaměření (inline SVG): podlahy půdorysem, stěny rozvinuté s výřezy odpočtů, délky, kusy.
 // Geometrie v sketch-layout.ts; tady jen kreslení, barvy z tématu (fill-/stroke- třídy) a klik na plochu.
-import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useId, useMemo } from 'react'
 import type { Room } from '@/lib/calc'
 import { cn } from '@/lib/utils'
+import { useWidth } from './use-width'
 import { layoutRoom, type SketchItem, type SketchText } from './sketch-layout'
 
 export interface RoomSketchProps {
@@ -12,22 +13,6 @@ export interface RoomSketchProps {
   /** Klik na plochu v náčrtu. */
   onSelectSurface?: (index: number) => void
   className?: string
-}
-
-/** Šířka prvku v px (ResizeObserver). */
-function useWidth<T extends HTMLElement>() {
-  const ref = useRef<T>(null)
-  const [width, setWidth] = useState(0)
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    setWidth(el.clientWidth)
-    if (typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() => setWidth(el.clientWidth))
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-  return [ref, width] as const
 }
 
 const TILE_M = 0.3 // dlaždice 30 cm

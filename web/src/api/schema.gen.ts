@@ -1618,6 +1618,16 @@ export interface components {
             name: string;
             /** Format: double */
             width: number;
+            /**
+             * Format: double
+             * @description Laying plan only: metres from the left edge of the surface (nil = automatic)
+             */
+            x?: number;
+            /**
+             * Format: double
+             * @description Laying plan only: metres from the floor (wall) or from the top edge (floor); nil = automatic
+             */
+            y?: number;
         };
         DiagCheck: {
             /** @description Technical details (server replies, records); never passwords */
@@ -2105,6 +2115,58 @@ export interface components {
             test: boolean;
             tls: string;
             user: string;
+        };
+        Layout: {
+            /**
+             * @description Where a whole tile starts horizontally (default center)
+             * @enum {string}
+             */
+            align_x?: "left" | "center" | "right";
+            /**
+             * @description Where a whole tile starts vertically (default: wall bottom = floor, floor center)
+             * @enum {string}
+             */
+            align_y?: "top" | "center" | "bottom";
+            /**
+             * Format: double
+             * @description m² in one box of tiles (to count boxes), 0 = unknown
+             */
+            box_m2?: number;
+            /**
+             * Format: double
+             * @description Joint (spára) in mm, e.g. 2 or 3
+             */
+            grout: number;
+            /**
+             * Format: double
+             * @description Shift of the tiles to the right in cm
+             */
+            offset_x?: number;
+            /**
+             * Format: double
+             * @description Shift of the tiles up in cm
+             */
+            offset_y?: number;
+            /**
+             * @description straight (default), half = running bond ½, third = bond ⅓
+             * @enum {string}
+             */
+            pattern?: "straight" | "half" | "third";
+            /**
+             * Format: double
+             * @description Tile height in cm (vertical in the drawing), e.g. 30; swap with tile_w to turn the tile
+             */
+            tile_h: number;
+            /**
+             * Format: double
+             * @description Tile width in cm (horizontal in the drawing), e.g. 60
+             */
+            tile_w: number;
+            /**
+             * Format: double
+             * @description Waste % for the purchase (default 10, bond 15)
+             */
+            waste?: number;
         };
         Line: {
             /**
@@ -2754,6 +2816,8 @@ export interface components {
             /** Format: double */
             height: number;
             kind: string;
+            /** @description Laying plan (floor, wall): tile size, joint, pattern, start */
+            layout?: components["schemas"]["Layout"];
             name: string;
             /** Format: double */
             width: number;

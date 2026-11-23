@@ -122,13 +122,51 @@ func cleanRooms(rooms []calc.Room) ([]calc.Room, error) {
 				return nil, invalid(loc, "dimensions must be positive metres")
 			}
 			for k, d := range f.Deductions {
-				if d.Width < 0 || d.Height < 0 || d.Count < 0 {
+				if d.Width < 0 || d.Height < 0 || d.Count < 0 || (d.X != nil && (*d.X < 0 || *d.X > 1000)) || (d.Y != nil && (*d.Y < 0 || *d.Y > 1000)) {
 					return nil, invalid(fmt.Sprintf("%s.deductions[%d]", loc, k), "dimensions must be positive metres")
 				}
+			}
+			if err := cleanLayout(f, loc+".layout"); err != nil {
+				return nil, err
 			}
 		}
 	}
 	return rooms, nil
+}
+
+var (
+	layoutPatterns = []string{"", calc.PatternStraight, calc.PatternHalf, calc.PatternThird}
+	layoutAlignX   = []string{"", "left", "center", "right"}
+	layoutAlignY   = []string{"", "top", "center", "bottom"}
+)
+
+// cleanLayout validates the laying plan of a surface (SPEC §5.6); lengths and pieces have none.
+func cleanLayout(f *calc.Surface, loc string) error {
+	l := f.Layout
+	if l == nil {
+		return nil
+	}
+	if f.Kind != calc.KindFloor && f.Kind != calc.KindWall {
+		f.Layout = nil
+		return nil
+	}
+	switch {
+	case l.TileW < 1 || l.TileW > 400 || l.TileH < 1 || l.TileH > 400:
+		return invalid(loc+".tile_w", "tile size 1–400 cm")
+	case l.Grout < 0 || l.Grout > 50:
+		return invalid(loc+".grout", "joint 0–50 mm")
+	case !slices.Contains(layoutPatterns, l.Pattern):
+		return invalid(loc+".pattern", "straight, half or third")
+	case !slices.Contains(layoutAlignX, l.AlignX) || !slices.Contains(layoutAlignY, l.AlignY):
+		return invalid(loc+".align_x", "left, center, right / top, center, bottom")
+	case math.Abs(l.OffsetX) > 1000 || math.Abs(l.OffsetY) > 1000 || math.IsNaN(l.OffsetX) || math.IsNaN(l.OffsetY):
+		return invalid(loc+".offset_x", "offset in cm")
+	case l.Waste != nil && (*l.Waste < 0 || *l.Waste > 100):
+		return invalid(loc+".waste", "0–100 %")
+	case l.BoxM2 < 0 || l.BoxM2 > 100:
+		return invalid(loc+".box_m2", "m² per box")
+	}
+	return nil
 }
 
 // buildLines turns input lines into line data: catalog defaults, measured quantities.

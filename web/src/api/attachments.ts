@@ -56,4 +56,23 @@ export const attachmentMutations = {
   remove: (slug: string) => (id: number) => unwrap(api.DELETE('/api/accounts/{slug}/attachments/{id}', { params: pid(slug, id) })),
 }
 
+/**
+ * Uloží obrázek kladečského plánu (SPEC §5.6): nahraje ho do kategorie „Kladečský plán“, u nabídky ho případně
+ * ukáže zákazníkovi a smaže předchozí verze (`replace`).
+ */
+export async function savePlanImage(slug: string, t: AttachmentTarget, file: File, shared: boolean, replace: Attachment[]): Promise<Attachment> {
+  const [a] = await uploadTo<Attachment>(`/api/accounts/${slug}/${t.kind}/${t.id}/attachments?category=plan`, [file])
+  if (!a) throw new Error('Plán se nepodařilo nahrát.')
+  const saved = shared ? await attachmentMutations.patch(slug)({ id: a.id, shared: true }) : a
+  for (const old of replace) if (old.id !== a.id) await attachmentMutations.remove(slug)(old.id)
+  return saved
+}
+
+/** Předchozí obrázky plánu téže místnosti (stejné jméno souboru), které patří jen k cíli — ty se nahradí. */
+export function previousPlans(attachments: Attachment[] | null | undefined, t: AttachmentTarget, filename: string): Attachment[] {
+  return (attachments ?? []).filter(
+    (a) => a.category === 'plan' && a.filename === filename && (t.kind === 'quotes' ? a.quote_id === t.id : a.job_id === t.id && !a.quote_id),
+  )
+}
+
 export const isImage = (a: { content_type: string }) => a.content_type.startsWith('image/')

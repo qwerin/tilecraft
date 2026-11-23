@@ -1,6 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { previousPlans, savePlanImage } from '@/api/attachments'
 import { useCatalog } from '@/api/catalog'
+import { errorMessage } from '@/api/errors'
 import { jobMutations, jobToInput, type Job } from '@/api/jobs'
 import { useFirmMutation } from '@/api/queries'
 import { Panel } from '@/components/common'
@@ -27,11 +30,36 @@ export function JobItemsEditor({ slug, job, onDone }: { slug: string; job: Job; 
     setBase((b) => f(b))
     setExtras((e) => f(e))
   }
+  const qc = useQueryClient()
   const save = useFirmMutation(slug, jobMutations.update(slug, job.id), [['jobs'], ['dashboard']])
   const totals = computeTotals(lines, rooms, job.discount, job.vat_rate)
   const diff = totals.total - job.totals.total
   const dup = duplicateRoomNames(rooms)
   const invalid = dup.size > 0 || lines.some((l) => !l.name.trim())
+
+  /** Kladečský plán: uloží zaměření a položky zakázky (editor zůstane otevřený) a nahraje obrázek místnosti. */
+  const savePlan = async (next: Room[], file: File): Promise<boolean> => {
+    if (duplicateRoomNames(next).size > 0 || invalid) {
+      toast.error('Nejdřív opravte názvy místností a položek.')
+      return false
+    }
+    const nextBase = syncLinesWithRooms(base, rooms, next)
+    const nextExtras = syncLinesWithRooms(extras, rooms, next)
+    setRooms(next)
+    setBase(nextBase)
+    setExtras(nextExtras)
+    try {
+      const saved = await save.mutateAsync(jobToInput(job, { rooms: roomsToInput(next), lines: [...nextBase, ...nextExtras].map(lineToInput) }))
+      const t = { kind: 'jobs' as const, id: job.id }
+      await savePlanImage(slug, t, file, false, previousPlans(saved.attachments, t, file.name))
+      await qc.invalidateQueries({ queryKey: [slug, 'jobs'] })
+      toast.success('Kladečský plán uložen do fotek zakázky')
+      return true
+    } catch (e) {
+      toast.error(errorMessage(e))
+      return false
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -57,6 +85,7 @@ export function JobItemsEditor({ slug, job, onDone }: { slug: string; job: Job; 
       <Panel id="zamereni" title="Zaměření">
         <RoomsEditor
           value={rooms}
+          plan={{ onSave: savePlan, subtitle: [job.title, job.site_address].filter(Boolean).join(' · ') }}
           onChange={(next) => {
             setLines((ls) => syncLinesWithRooms(ls, rooms, next))
             setRooms(next)

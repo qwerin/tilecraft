@@ -1,4 +1,4 @@
-import { ChevronDownIcon, CopyIcon, EllipsisVerticalIcon, MinusIcon, PlusIcon, SquareDashedIcon, Trash2Icon } from 'lucide-react'
+import { ChevronDownIcon, CopyIcon, EllipsisVerticalIcon, LayoutGridIcon, MinusIcon, PlusIcon, SquareDashedIcon, Trash2Icon } from 'lucide-react'
 import { useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -7,6 +7,8 @@ import { round2, roomSummary, surfaceArea, total, type Deduction, type Room, typ
 import { num, parseMeters } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { duplicateRoomNames, kindLabels, newSurface, SURFACE_NAMES } from './model'
+import { canPlan } from './laying-plan'
+import { LayingPlanDialog, type LayingPlanSave } from './laying-plan-dialog'
 import { NumberInput } from './number-input'
 import { RoomSketch } from './room-sketch'
 import { formatDecimal } from './numbers'
@@ -17,7 +19,14 @@ export interface RoomsEditorProps {
   onChange: (rooms: Room[]) => void
   /** Jen náhled (přijatá nabídka, parťák). */
   readOnly?: boolean
+  /** Kladečský plán: uložení zaměření a obrázku plánu do příloh (bez toho jen úprava zaměření). */
+  plan?: RoomsPlanOptions
   className?: string
+}
+
+/** Uložení kladečského plánu z editoru zaměření: celé zaměření + PNG místnosti. */
+export interface RoomsPlanOptions extends Omit<LayingPlanSave, 'onSave'> {
+  onSave: (rooms: Room[], file: File, shared: boolean) => Promise<boolean>
 }
 
 const ROOM_NAMES = ['Koupelna', 'WC', 'Kuchyň', 'Chodba', 'Předsíň', 'Balkon', 'Terasa']
@@ -49,7 +58,7 @@ function rememberSketchOpen(open: boolean) {
 }
 
 /** Zaměření: místnosti → plochy (podlaha, stěna, délka, kusy) s odpočty; živě spočítané plochy a souhrny. */
-export function RoomsEditor({ value, onChange, readOnly, className }: RoomsEditorProps) {
+export function RoomsEditor({ value, onChange, readOnly, plan, className }: RoomsEditorProps) {
   const dup = duplicateRoomNames(value)
   const setRoom = (i: number, r: Room) => onChange(value.map((x, j) => (j === i ? r : x)))
   const addRoom = (name?: string) => {
@@ -73,6 +82,7 @@ export function RoomsEditor({ value, onChange, readOnly, className }: RoomsEdito
           room={r}
           duplicate={dup.has(r.name.trim()) || !r.name.trim()}
           readOnly={readOnly}
+          plan={plan && { ...plan, onSave: (nr, file, shared) => plan.onSave(value.map((x, j) => (j === i ? nr : x)), file, shared) }}
           onChange={(nr) => setRoom(i, nr)}
           onRemove={() => onChange(value.filter((_, j) => j !== i))}
           onDuplicate={() => {
@@ -134,6 +144,7 @@ function RoomCard({
   room,
   duplicate,
   readOnly,
+  plan,
   onChange,
   onRemove,
   onDuplicate,
@@ -141,6 +152,7 @@ function RoomCard({
   room: Room
   duplicate: boolean
   readOnly?: boolean
+  plan?: LayingPlanSave
   onChange: (r: Room) => void
   onRemove: () => void
   onDuplicate: () => void
@@ -148,6 +160,7 @@ function RoomCard({
   const surfaces = room.surfaces ?? []
   const [sketchOpen, setSketchOpen] = useState(sketchOpenDefault)
   const [active, setActive] = useState<number | null>(null)
+  const [planAt, setPlanAt] = useState<number | null>(null)
   const rows = useRef<(HTMLDivElement | null)[]>([])
   /** Klik v náčrtu: odroluje k ploše a zaměří její první rozměr. */
   const selectSurface = (i: number) => {
@@ -230,6 +243,7 @@ function RoomCard({
               readOnly={readOnly}
               onChange={(ns) => setSurface(i, ns)}
               onRemove={() => onChange({ ...room, surfaces: surfaces.filter((_, j) => j !== i) })}
+              onPlan={() => setPlanAt(i)}
               onAddWalls={(h) => {
                 const w = round2(s.width)
                 const d = round2(s.height)
@@ -252,6 +266,15 @@ function RoomCard({
       <div className="border-t bg-muted/25 px-3 py-2">
         <SummaryChips summary={roomSummary(room)} />
       </div>
+      <LayingPlanDialog
+        room={room}
+        index={planAt ?? 0}
+        open={planAt !== null}
+        onOpenChange={(o) => !o && setPlanAt(null)}
+        readOnly={readOnly}
+        onApply={onChange}
+        save={plan}
+      />
     </div>
   )
 }
@@ -277,12 +300,14 @@ function SurfaceRow({
   onChange,
   onRemove,
   onAddWalls,
+  onPlan,
 }: {
   surface: Surface
   readOnly?: boolean
   onChange: (s: Surface) => void
   onRemove: () => void
   onAddWalls: (height: number) => void
+  onPlan: () => void
 }) {
   const [wallsHeight, setWallsHeight] = useState<number | null | undefined>(undefined)
   const kind = s.kind as SurfaceKind
@@ -316,6 +341,16 @@ function SurfaceRow({
       </div>
       <div className="flex flex-wrap items-center gap-1">
         <KindPicker value={kind} disabled={readOnly} onChange={(k) => onChange({ ...s, kind: k, name: s.name === SURFACE_NAMES[kind] ? SURFACE_NAMES[k] : s.name })} />
+        {canPlan(s) && (!readOnly || s.layout) && (
+          <Button type="button" variant="ghost" size="sm" onClick={onPlan} className={cn(!s.layout && 'text-muted-foreground')} title="Nakreslit rozložení dlaždic">
+            <LayoutGridIcon /> Kladečský plán
+            {s.layout && (
+              <span className="font-normal text-muted-foreground tabular-nums">
+                {num(s.layout.tile_w)}×{num(s.layout.tile_h)}
+              </span>
+            )}
+          </Button>
+        )}
         {isArea && !readOnly && (
           <div className="ml-auto flex flex-wrap justify-end gap-1">
             {kind === 'floor' && !manual && s.width > 0 && s.height > 0 && wallsHeight === undefined && (

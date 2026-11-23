@@ -257,8 +257,25 @@ export function roomsToInput(rooms: Room[]): Room[] {
       name: s.name.trim(),
       count: s.count && s.count > 0 ? s.count : undefined,
       deductions: (s.deductions ?? []).map((d) => ({ ...d, count: d.count && d.count > 0 ? d.count : undefined })),
+      layout: s.layout && (s.kind === 'floor' || s.kind === 'wall') ? layoutToInput(s.layout) : undefined,
     })),
   }))
+}
+
+/** Kladečský plán pro API: nulové a výchozí volitelné hodnoty vynechá (jako je server vrací), ať se nabídka nehlásí jako změněná. */
+function layoutToInput(l: NonNullable<Surface['layout']>): NonNullable<Surface['layout']> {
+  return {
+    tile_w: l.tile_w,
+    tile_h: l.tile_h,
+    grout: l.grout,
+    pattern: l.pattern || undefined,
+    align_x: l.align_x || undefined,
+    align_y: l.align_y || undefined,
+    offset_x: l.offset_x || undefined,
+    offset_y: l.offset_y || undefined,
+    waste: l.waste ?? undefined,
+    box_m2: l.box_m2 || undefined,
+  }
 }
 
 /** Výchozí názvy nových ploch. */

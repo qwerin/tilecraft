@@ -22,6 +22,9 @@ import {
   FolderInputIcon,
   HammerIcon,
   HardHatIcon,
+  LayoutGridIcon,
+  RotateCwIcon,
+  ScanIcon,
   ImagePlusIcon,
   ImageUpIcon,
   Link2Icon,
@@ -206,6 +209,11 @@ export const uiIcons: Record<string, LucideIcon> = {
   'Ukázat zákazníkovi v nabídce': EyeIcon,
   'Skrýt před zákazníkem': EyeOffIcon,
   'Přesunout do': FolderInputIcon,
+  'Kladečský plán': LayoutGridIcon,
+  'Otočit': RotateCwIcon,
+  'Vycentrovat': ScanIcon,
+  'Optimalizovat řezy': SparklesIcon,
+  'Uložit jako kladečský plán': ImageUpIcon,
 }
 
 export const guides: Guide[] = [
@@ -358,6 +366,26 @@ export const guides: Guide[] = [
           'Odečtená plocha se ukáže červeně (−1,58 m²) a hned se odečte. Odpočet odeberete tlačítkem s mínusem.',
         ],
         tips: ['Vana = pás stěny, který zakryje vana a neobkládá se. Výšku zadejte podle skutečnosti.'],
+      },
+      {
+        id: 'kladecsky-plan',
+        title: 'Kladečský plán: dlaždice, spára, řezy',
+        text: 'Aplikace nakreslí, jak dlaždice na podlahu nebo stěnu padnou: kde budou řezy, kolik celých a řezaných kusů a kolik koupit. Plocha ani ceny se tím nemění.',
+        steps: [
+          'U podlahy nebo stěny (zadané rozměry) klepněte na [[Kladečský plán]]. Otevře se výkres plochy; nahoře přepínáte plochy místnosti.',
+          'Dlaždice: vyberte formát (30×60, 60×60…) nebo napište šířku a výšku v cm; [[Otočit]] dá dlaždici na výšku / na šířku. Spára v mm.',
+          'Vzor: Rovně, Na vazbu ½ nebo Na vazbu ⅓.',
+          'Začátek kladení: odkud jde celá dlaždice (modře) — Zleva / Na střed / Zprava a u stěny Od podlahy / Na střed / Od stropu. Posun doprava a nahoru doladí v cm.',
+          'Červené dlaždice jsou úzké řezy (užší než ⅓ dlaždice). [[Optimalizovat řezy]] posune dlaždice tak, aby u krajů i kolem dveří, okna a vany zbyly co nejširší kusy; [[Vycentrovat]] dá stejné řezy na obě strany.',
+          'Otvory: u dveří, okna nebo vany můžete zadat polohu Zleva a Od podlahy (v metrech); tlačítko Automaticky ji vrátí.',
+          'Nákup: Prořez (výchozí 10 %, na vazbu 15 %) a m² v balení — pod výkresem je, kolik m², kusů a balení koupit.',
+          'Hotovo vrátí plán do zaměření (nabídku pak uložte). [[Uložit jako kladečský plán]] uloží nabídku a obrázek celé místnosti přidá do „Fotky a kladečský plán“; s přepínačem Ukázat zákazníkovi ho zákazník uvidí v nabídce i v PDF.',
+        ],
+        tips: [
+          'Při dalším uložení plánu téže místnosti se starý obrázek nahradí novým.',
+          'Pruh nad dveřmi nebo mezi oknem a stropem je daný rozměry — za úzký řez se nepočítá.',
+          'Stejný plán jde nakreslit i u zakázky v [[Upravit položky]] → Zaměření; obrázek se uloží do fotek zakázky a uvidí ho i parťák.',
+        ],
       },
       {
         id: 'nepravidelne',

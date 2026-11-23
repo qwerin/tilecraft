@@ -113,6 +113,8 @@ export function cutKind(name: string): 'door' | 'window' | 'bath' | 'other' {
 /** Umístěný odpočet v metrech: x zleva, y odspodu (stěna) / shora (podlaha). */
 export interface PlacedCut {
   name: string
+  /** Index odpočtu v `surface.deductions`. */
+  index: number
   x: number
   y: number
   w: number
@@ -131,7 +133,7 @@ export function placeCuts(kind: 'floor' | 'wall', W: number, H: number, deductio
   const out: PlacedCut[][] = Array.from({ length: Math.max(1, copies) }, () => [])
   if (W <= 0 || H <= 0) return out
   const inst: PlacedCut[] = []
-  for (const d of deductions) {
+  for (const [index, d] of deductions.entries()) {
     const w = pos(d.width)
     const h = pos(d.height)
     if (!w || !h) continue
@@ -139,6 +141,7 @@ export function placeCuts(kind: 'floor' | 'wall', W: number, H: number, deductio
     for (let i = 0; i < n; i++)
       inst.push({
         name: d.name,
+        index,
         x: 0,
         y: 0,
         w: Math.min(w, W),
@@ -154,7 +157,16 @@ export function placeCuts(kind: 'floor' | 'wall', W: number, H: number, deductio
     used[k] += c.w
     out[k].push(c)
   }
-  for (const list of out) arrange(kind, W, H, list)
+  for (const list of out) {
+    arrange(kind, W, H, list)
+    // poloha zadaná v kladečském plánu (jen u odpočtu s jedním kusem)
+    for (const c of list) {
+      const d = deductions[c.index]
+      if (cnt(d.count) !== 1) continue
+      if (typeof d.x === 'number' && Number.isFinite(d.x)) c.x = Math.max(0, Math.min(d.x, W - c.w))
+      if (typeof d.y === 'number' && Number.isFinite(d.y)) c.y = Math.max(0, Math.min(d.y, H - c.h))
+    }
+  }
   return out
 }
 
