@@ -116,6 +116,7 @@ func New(db *gorm.DB, cfg config.Config, deps Deps) (http.Handler, huma.API) {
 	s.registerCatalog(account)
 	s.registerQuotes(account)
 	s.registerJobs(account)
+	s.registerAttachments(account)
 	s.registerInvoices(account)
 	s.registerInvoicePDF(account)
 	s.registerDashboard(account)
@@ -123,7 +124,8 @@ func New(db *gorm.DB, cfg config.Config, deps Deps) (http.Handler, huma.API) {
 	s.registerPublicInvoices(public)
 
 	// file uploads/downloads are plain handlers (multipart, streaming)
-	router.With(s.plainAccount).Post("/api/accounts/{slug}/jobs/{id}/attachments", s.uploadAttachment)
+	router.With(s.plainAccount).Post("/api/accounts/{slug}/jobs/{id}/attachments", s.uploadJobAttachment)
+	router.With(s.plainAccount).Post("/api/accounts/{slug}/quotes/{id}/attachments", s.uploadQuoteAttachment)
 	router.With(s.plainAccount).Get("/api/accounts/{slug}/attachments/{id}", s.downloadAttachment)
 	router.With(s.plainAccount).Post("/api/accounts/{slug}/logo", s.uploadLogo)
 	router.With(s.plainAccount).Get("/api/accounts/{slug}/logo", s.downloadLogo)
@@ -131,6 +133,7 @@ func New(db *gorm.DB, cfg config.Config, deps Deps) (http.Handler, huma.API) {
 	router.Get("/api/public/quotes/{token}/pdf", s.publicQuotePDF)
 	router.Get("/api/public/invoices/{token}/logo", s.publicInvoiceLogo)
 	router.Get("/api/public/invoices/{token}/pdf", s.publicInvoicePDF)
+	router.Get("/api/public/quotes/{token}/files/{id}", s.publicQuoteFile)
 
 	// MCP for AI assistants: plain handler (streaming transport), tools dispatch to the routes above
 	router.Handle(mcpPath, s.mcpHandler(router, api))

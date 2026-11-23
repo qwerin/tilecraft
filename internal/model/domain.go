@@ -199,11 +199,27 @@ type JobNote struct {
 	User User
 }
 
-// Attachment is a photo or file of a job.
+// Attachment categories: the stage of the work a photo shows, or the laying plan (SPEC §6).
+const (
+	AttachBefore = "before" // original state (navedení zakázky)
+	AttachDuring = "during" // during the work (zhotovení)
+	AttachAfter  = "after"  // finished job (ukončení)
+	AttachPlan   = "plan"   // laying plan (kladečský plán): image or PDF
+	AttachOther  = "other"
+)
+
+// AttachmentCategories in workflow order.
+var AttachmentCategories = []string{AttachBefore, AttachDuring, AttachAfter, AttachPlan, AttachOther}
+
+// Attachment is a photo or file of a quote and/or a job: a file uploaded to a
+// quote is linked to the job made from it (the same row, no copy).
 type Attachment struct {
 	ID          uint
-	AccountID   uint `gorm:"not null;index"`
-	JobID       uint `gorm:"not null;index"`
+	AccountID   uint   `gorm:"not null;index"`
+	QuoteID     *uint  `gorm:"index"`
+	JobID       *uint  `gorm:"index"`
+	Category    string `gorm:"not null;default:other"`
+	Shared      bool   `gorm:"not null;default:false"` // laying plan shown to the customer (/n/{token}, quote PDF)
 	Filename    string
 	ContentType string
 	Size        int64

@@ -79,7 +79,8 @@ Stavy: `draft` (rozpracovaná) → `sent` (odeslaná) → `accepted` / `rejected
 
 Pole: číslo, zákazník, název („Koupelna — Novákovi“), adresa stavby, datum vystavení, platnost do,
 úvod, poznámka, **zaměření** (§5.1), **řádky** (§5.3), sazba DPH, veřejný token, odesláno/rozhodnuto kdy,
-vyjádření zákazníka, vytvořená zakázka.
+vyjádření zákazníka, vytvořená zakázka, **fotky a kladečský plán** (§6.1 — při navedení zakázky: fotky původního stavu
+a kladečský plán, nahrává kancelář).
 
 ### 5.1 Zaměření
 
@@ -122,23 +123,52 @@ množství `measure` zruší.
 - Odeslání e-mailem (PDF v příloze + odkaz) nebo jen zkopírování odkazu (WhatsApp/SMS) → stav `sent`.
 - Veřejná stránka `/n/{token}` (bez přihlášení): nabídka v podobě tisku, tlačítka **Přijímám** / **Odmítám**
   s poznámkou a jménem. Přijetí: stav `accepted`, firmě e-mail, nabídka se zamkne. Token je náhodný (128 bit).
-- Tisk / PDF: `/print/{slug}/quotes/{id}` (A4, logo, zaměření volitelně, sekce, podmínky).
+- **Kladečský plán pro zákazníka**: příloha nabídky v kategorii `plan` s volbou „Ukázat zákazníkovi“ (`shared`) se zobrazí
+  na `/n/{token}` (obrázek přes celou šířku, PDF jako odkaz) a v PDF nabídky (každý obrázek na vlastní straně „Kladečský plán“,
+  PDF plánu jen jménem s odkazem na online nabídku). Soubor se servíruje přes token: `/api/public/quotes/{token}/files/{id}`
+  vrátí jen sdílený plán této (odeslané) nabídky, cokoli jiného (fotky, nesdílený plán, cizí nabídka, rozpracovaná) = 404.
+- Tisk / PDF: `/print/{slug}/quotes/{id}` (A4, logo, zaměření volitelně, sekce, podmínky, sdílený kladečský plán).
 
 ### 5.5 Kopie
 
-„Duplikovat“ udělá novou rozpracovanou nabídku (varianta: dražší obklad, bez materiálu…).
+„Duplikovat“ udělá novou rozpracovanou nabídku (varianta: dražší obklad, bez materiálu…). Fotky a plán se nekopírují.
 
 ## 6. Zakázka (`Job`)
 
-Vzniká **z přijaté nabídky** (zkopíruje zákazníka, adresu, zaměření a řádky) nebo ručně.
+Vzniká **z přijaté nabídky** (zkopíruje zákazníka, adresu, zaměření a řádky; fotky a plán nabídky **připojí** — stejné soubory,
+nekopírují se) nebo ručně.
 Stavy: `planned` (domluvená) → `in_progress` (realizace) → `done` (hotovo) → `invoiced`; kdykoli `cancelled`.
 
 - Termín od–do (kalendář zakázek), adresa stavby, kontakt na místě, poznámka, přiřazení parťáci.
 - **Skutečnost**: řádky zakázky jsou kopie nabídky a upravují se podle reality (víc m², vícepráce).
   Zobrazí se rozdíl proti nabídce.
-- **Fotky a soubory** (před / během / po, z mobilu přímo fotoaparátem).
+- **Fotky a soubory** po fázích (§6.1), z mobilu přímo fotoaparátem.
 - **Deník**: krátké poznámky s datem (co se udělalo, co chybí) — i od parťáků.
 - **Zálohy**: zálohová faktura z části ceny (např. 50 % materiálu předem).
+
+### 6.1 Fotky, kladečský plán a soubory (`Attachment`)
+
+Fotky provázejí celou zakázku: navedení (nabídka) → zhotovení → ukončení.
+
+| `category` | | kdy |
+|---|---|---|
+| `before` | Před | původní stav (navedení zakázky, u nabídky) |
+| `during` | Během | foto během zhotovení |
+| `after` | Hotovo | foto hotové zakázky |
+| `plan` | Kladečský plán | obrázek nebo PDF (u nabídky, lze ukázat zákazníkovi — §5.4) |
+| `other` | Ostatní | doklady, cokoli dalšího (i soubory nahrané před zavedením kategorií) |
+
+- Příloha patří k nabídce (`quote_id`), k zakázce (`job_id`) nebo k oběma: vytvoření zakázky z nabídky připojí přílohy nabídky
+  k zakázce (tentýž řádek a soubor). Soubor nahraný k nabídce, která už zakázku má, je rovnou i u zakázky. Soubor nahraný
+  k zakázce patří jen zakázce (na nabídce se neukazuje).
+- Nahrání: `POST …/quotes/{id}/attachments` (jen kancelář, výchozí `before`) a `POST …/jobs/{id}/attachments` (všichni, výchozí
+  podle stavu zakázky: `planned` → `before`, `in_progress` → `during`, `done`/`invoiced` → `after`, jinak `other`);
+  kategorie v `?category=`. Změna kategorie / sdílení: `PATCH …/attachments/{id}` (parťák jen u vlastních souborů, sdílet
+  zákazníkovi smí jen kancelář a jen plán nabídky; přesun mimo `plan` sdílení zruší). Seznam: `GET …/attachments?quote_id=&job_id=&category=`.
+- Parťák vidí a nahrává jen soubory zakázek (soubory nabídky bez zakázky jsou pro něj 404), maže jen vlastní; kancelář vše.
+- Smazání zakázky smaže její vlastní soubory, soubory nabídky zůstanou u nabídky. Smazání nabídky (bez zakázky) smaže její soubory.
+- Na stránce zakázky jsou fotky seskupené po kategoriích, nahrání volí kategorii (předvolená podle stavu); na stránce nabídky
+  sekce „Fotky a kladečský plán“ (Před / Kladečský plán / Ostatní).
 
 ## 7. Faktury (`Invoice`)
 
@@ -180,7 +210,9 @@ a Claude:
 Nástroje: `list_accounts`, `get_account`, `list_catalog`, `create_catalog_item`, `update_catalog_item`,
 `list_customers`, `get_customer`, `create_customer`, `update_customer`, `list_quotes`, `get_quote`, `create_quote`,
 `update_quote`, `duplicate_quote`, `preview_measurements` (spočítá plochy bez uložení), `list_jobs`, `get_job`,
-`create_job_from_quote`, `update_job`, `add_job_note`, `list_invoices`, `get_invoice`.
+`create_job_from_quote`, `update_job`, `add_job_note`, `list_invoices`, `get_invoice`, `list_attachments` (fotky a plány podle
+nabídky/zakázky a kategorie), `get_attachment` (ukáže soubor), `upload_attachment` (nahraje soubor k nabídce nebo zakázce s kategorií;
+zákazníkovi ho ukázat neumí).
 Bez mazání, odesílání e-mailů, změn členů a nastavení.
 
 ## 10. Technika
@@ -205,3 +237,6 @@ Tailwind 4 + shadcn (base-ui), PWA (instalace na telefon), openapi-typescript. D
    Výchozí velikost pro celou nabídku zatím není (každý řádek zvlášť); chtěl by ji?
 9. Doplňkové práce: jednotky a ceny (kamenický roh bm, nika ks, betonování m²) jsou odhad; počítá se nika kusem, nebo m² obkladu
    + kamenické rohy? Betonování podle m² podlahy, nebo podle tloušťky (m³)?
+10. Kladečský plán ve formátu PDF se do PDF nabídky nevkládá (jen jméno a odkaz na online nabídku) — stačí to, nebo převádět
+   na obrázek? Sdílení zákazníkovi je po souborech (`shared`), ne přepínač celé nabídky.
+11. Fotky zakázky (během / hotovo) zákazníkovi zatím nijak neukazujeme (např. předávací protokol, odkaz na hotovou práci).

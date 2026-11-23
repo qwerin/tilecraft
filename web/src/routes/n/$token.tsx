@@ -106,6 +106,8 @@ function PublicQuotePage() {
 
           {q.measurements && q.rooms.length > 0 && <Measurements q={q} />}
 
+          {q.plans.length > 0 && <Plans q={q} />}
+
           {(q.note || q.terms) && (
             <div className="flex flex-col gap-4 border-t px-5 py-5 text-sm sm:px-8">
               {q.note && (
@@ -234,6 +236,31 @@ function LineItem({ l }: { l: Line }) {
         {l.customer_supplied ? <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">dodá zákazník</span> : money(l.amount)}
       </span>
     </li>
+  )
+}
+
+/** Kladečský plán, který firma zákazníkovi ukázala: obrázky přes celou šířku, PDF jako odkaz. */
+function Plans({ q }: { q: PublicQuote }) {
+  return (
+    <div className="border-t px-5 py-5 sm:px-8">
+      <h2 className="mb-3 font-heading text-lg font-semibold">Kladečský plán</h2>
+      <div className="flex flex-col gap-3">
+        {q.plans.map((p) => {
+          const href = `${p.url}?inline=1`
+          return p.content_type.startsWith('image/') ? (
+            <a key={p.id} href={href} target="_blank" rel="noreferrer" title={p.filename}>
+              <img src={href} alt={p.filename} loading="lazy" className="w-full rounded-lg border bg-white object-contain" />
+            </a>
+          ) : (
+            <a key={p.id} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg border px-3 py-3 text-sm hover:bg-muted">
+              <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{p.filename}</span>
+              <span className="text-xs text-muted-foreground">otevřít</span>
+            </a>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 

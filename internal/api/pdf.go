@@ -180,6 +180,7 @@ func (s *server) quotePDF(ctx context.Context, acc *model.Account, q *model.Quot
 				Length: r.Length, Pieces: r.Pieces})
 		}
 	}
+	doc.Plans = s.planFiles(ctx, q)
 	pdf, err := invoicepdf.QuotePDF(doc)
 	if err != nil {
 		slog.Error("quote PDF", "quote", q.ID, "err", err)
@@ -200,6 +201,31 @@ func (s *server) getQuotePDF(ctx context.Context, in *struct {
 		return nil, err
 	}
 	return &FileOutput{ContentType: "application/pdf", ContentDisposition: `inline; filename="` + invoicepdf.QuoteFilename(q.Number) + `"`, Body: pdf}, nil
+}
+
+// maxPlanPrint bounds an image of a laying plan read for the quote PDF.
+const maxPlanPrint = 20 << 20
+
+// planFiles are the laying plans shown to the customer, for the quote PDF
+// (images with their data, other files only named).
+func (s *server) planFiles(ctx context.Context, q *model.Quote) []invoicepdf.Plan {
+	atts, err := s.publicPlans(ctx, s.db, q)
+	if err != nil {
+		slog.Warn("plans for a quote PDF", "quote", q.ID, "err", err)
+		return nil
+	}
+	out := make([]invoicepdf.Plan, 0, len(atts))
+	for _, a := range atts {
+		p := invoicepdf.Plan{Name: a.Filename}
+		if strings.HasPrefix(a.ContentType, "image/") && a.Size <= maxPlanPrint {
+			if f, err := s.deps.Storage.Get(ctx, a.StorageKey); err == nil {
+				p.Data, _ = io.ReadAll(io.LimitReader(f, maxPlanPrint))
+				_ = f.Close()
+			}
+		}
+		out = append(out, p)
+	}
+	return out
 }
 
 // publicQuotePDF serves the quote PDF to the customer (/n/{token}).

@@ -58,6 +58,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { GuideLink } from '@/components/guides/guide-link'
+import { QuoteFiles } from '@/components/quotes/quote-files'
 import { useFirm } from '@/hooks/use-firm'
 import { addDays, fmtDate, fmtDateTime, money, today } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -413,6 +414,8 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
               onChange={(rooms) => setForm((f) => ({ ...f, rooms, lines: syncLinesWithRooms(f.lines, f.rooms, rooms) }))}
             />
           </Panel>
+
+          {quote && <QuoteFiles slug={slug} quote={quote} />}
 
           <Panel title="Položky">
             <LinesEditor value={form.lines} onChange={(lines) => set('lines', lines)} rooms={form.rooms} catalog={catalog} readOnly={locked} hidePrices={false} />
