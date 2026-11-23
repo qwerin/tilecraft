@@ -223,6 +223,8 @@ type Invoice struct {
 	Note               string
 	EmailedAt          *time.Time
 	EmailedTo          string
+	PublicToken        string     `gorm:"uniqueIndex"` // customer's link /f/{token} (random, 128 bit); set by newInvoice, db.Migrate fills older rows
+	ViewedAt           *time.Time // the customer first opened the link
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 

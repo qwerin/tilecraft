@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { ArrowLeftIcon, BanknoteIcon, BriefcaseIcon, FileDownIcon, MailIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import { ArrowLeftIcon, BanknoteIcon, BriefcaseIcon, EyeIcon, FileDownIcon, Link2Icon, MailIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFirmMutation } from '@/api/queries'
 import { invoiceApi, invoicePdfUrl, invoiceQuery, invoiceState, invoiceTitle, type Invoice } from '@/api/invoices'
 import { Confirm, PageHeader, StatusBadge } from '@/components/common'
 import { InvoiceDocument } from '@/components/invoices/invoice-document'
-import { InvoiceEmailDialog, InvoicePaidDialog } from '@/components/invoices/invoice-dialogs'
+import { InvoiceEmailDialog, InvoicePaidDialog, InvoiceShareDialog } from '@/components/invoices/invoice-dialogs'
 import { InvoiceEditor } from '@/components/invoices/invoice-editor'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { GuideLink } from '@/components/guides/guide-link'
@@ -25,6 +25,7 @@ function InvoicePage() {
   const { data: inv } = useSuspenseQuery(invoiceQuery(slug, Number(id)))
   const [editing, setEditing] = useState(false)
   const [emailing, setEmailing] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [paying, setPaying] = useState(false)
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -94,6 +95,11 @@ function InvoicePage() {
         <Button variant="outline" onClick={() => setEmailing(true)}>
           <MailIcon /> Odeslat e-mailem
         </Button>
+        {inv.public_url && (
+          <Button variant="outline" onClick={() => setSharing(true)}>
+            <Link2Icon /> Odkaz pro zákazníka
+          </Button>
+        )}
         {unpaid && (
           <Button variant="outline" onClick={() => setEditing(true)}>
             <PencilIcon /> Upravit
@@ -133,6 +139,7 @@ function InvoicePage() {
 
       <InvoiceEmailDialog slug={slug} inv={inv} open={emailing} onOpenChange={setEmailing} />
       <InvoicePaidDialog slug={slug} inv={inv} open={paying} onOpenChange={setPaying} />
+      <InvoiceShareDialog inv={inv} firm={account.name} open={sharing} onOpenChange={setSharing} />
     </div>
   )
 }
@@ -152,6 +159,11 @@ function InvoiceMeta({ inv, slug }: { inv: Invoice; slug: string }) {
         </span>
       ) : (
         <span className="text-xs">Zatím neodesláno</span>
+      )}
+      {inv.viewed_at && (
+        <span className="inline-flex items-center gap-1 text-xs">
+          <EyeIcon className="size-3.5" /> Zákazník otevřel {fmtDateTime(inv.viewed_at)}
+        </span>
       )}
     </span>
   )

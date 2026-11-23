@@ -35,6 +35,19 @@ export function useInvoice(slug: string, id: number) {
 
 export const invoicePdfUrl = (slug: string, id: number) => `/api/accounts/${slug}/invoices/${id}/pdf`
 
+/** Veřejná faktura pro zákazníka (/f/{token}, bez přihlášení). */
+export type PublicInvoice = S['PublicInvoice']
+
+export function usePublicInvoice(token: string) {
+  return useQuery({
+    queryKey: ['public-invoice', token],
+    queryFn: () => unwrap(api.GET('/api/public/invoices/{token}', { params: { path: { token } } })),
+    retry: false,
+  })
+}
+
+export const publicInvoicePdfUrl = (token: string) => `/api/public/invoices/${encodeURIComponent(token)}/pdf`
+
 export const invoiceApi = {
   create: (slug: string) => (body: InvoiceInput) => unwrap(api.POST('/api/accounts/{slug}/invoices', { params: path(slug), body })),
   update: (slug: string, id: number) => (body: InvoiceInput) =>

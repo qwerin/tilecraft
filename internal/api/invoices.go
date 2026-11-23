@@ -85,6 +85,8 @@ type Invoice struct {
 	Vat       int64         `json:"vat"`
 	QRPayment string        `json:"qr_payment" doc:"SPAYD payload of the QR Platba (\"\" when paid or without a bank account)"`
 	VS        string        `json:"vs" doc:"Variable symbol"`
+	PublicURL string        `json:"public_url" doc:"Link for the customer (view, PDF, QR Platba; no login)"`
+	ViewedAt  *time.Time    `json:"viewed_at" doc:"When the customer first opened the link"`
 }
 
 // InvoiceInput creates or replaces an invoice.
@@ -248,7 +250,7 @@ func (s *server) toInvoice(ctx context.Context, inv *model.Invoice) (Invoice, er
 		Party: InvoiceParty{Name: inv.CustName, Street: inv.CustStreet, City: inv.CustCity, Zip: inv.CustZip,
 			RegistrationNo: inv.CustRegistrationNo, VatNo: inv.CustVatNo, Email: inv.CustEmail},
 		VatPayer: inv.VatPayer, TaxableOn: inv.TaxableOn, Note: inv.Note, EmailedTo: inv.EmailedTo, Lines: make([]InvoiceLine, len(inv.Lines)),
-		VatRows: rows, Base: base, Vat: vat, VS: spayd.Digits(inv.Number, 10)}
+		VatRows: rows, Base: base, Vat: vat, VS: spayd.Digits(inv.Number, 10), PublicURL: s.publicInvoiceURL(inv), ViewedAt: inv.ViewedAt}
 	if !inv.VatPayer {
 		out.VatRows = []VatRow{}
 	}
@@ -373,7 +375,7 @@ func (s *server) fillInvoice(ctx context.Context, tx *gorm.DB, inv *model.Invoic
 // newInvoice numbers and saves an invoice. Invoices and advances share one
 // sequence (unique variable symbols); advances are prefixed ZF.
 func (s *server) newInvoice(ctx context.Context, tx *gorm.DB, b *InvoiceInput) (*model.Invoice, error) {
-	inv := model.Invoice{AccountID: accountID(ctx), Kind: defaultStr(b.Kind, model.InvoiceRegular)}
+	inv := model.Invoice{AccountID: accountID(ctx), Kind: defaultStr(b.Kind, model.InvoiceRegular), PublicToken: publicToken()}
 	issued := defaultStr(b.IssuedOn, s.today())
 	t, err := time.Parse(time.DateOnly, issued)
 	if err != nil {

@@ -19,6 +19,7 @@ import {
   HardHatIcon,
   ImagePlusIcon,
   ImageUpIcon,
+  Link2Icon,
   ListIcon,
   MailIcon,
   MessageCircleIcon,
@@ -173,6 +174,7 @@ export const uiIcons: Record<string, LucideIcon> = {
   'Zaplaceno': BanknoteIcon,
   'Úhrada': BanknoteIcon,
   'Odeslat e-mailem': MailIcon,
+  'Odkaz pro zákazníka': Link2Icon,
   'Smazat': Trash2Icon,
   'Nová faktura': PlusIcon,
   'Přidat řádek': PlusIcon,
@@ -723,7 +725,7 @@ export const guides: Guide[] = [
     icon: ReceiptTextIcon,
     managers: true,
     purpose:
-      'Fakturu nemusíte psát znovu: ze zakázky ji vystavíte jedním klepnutím s položkami i odečtem zaplacených záloh. Faktura má QR Platbu a pošlete ji e-mailem. Ručně napíšete fakturu i bez zakázky.',
+      'Fakturu nemusíte psát znovu: ze zakázky ji vystavíte jedním klepnutím s položkami i odečtem zaplacených záloh. Faktura má QR Platbu a pošlete ji e-mailem nebo odkazem přes WhatsApp či SMS. Ručně napíšete fakturu i bez zakázky.',
     sections: [
       {
         id: 'zaloha',
@@ -776,8 +778,21 @@ export const guides: Guide[] = [
         title: 'Odeslání e-mailem',
         steps: [
           'Ve faktuře klepněte na [[Odeslat e-mailem]].',
-          'Zkontrolujte Komu, případně Zprávu (nepovinná) a klepněte na [[Odeslat]]. PDF jde v příloze, v e-mailu je částka, splatnost, účet a VS.',
+          'Zkontrolujte Komu, případně Zprávu (nepovinná) a klepněte na [[Odeslat]]. PDF jde v příloze, v e-mailu je odkaz na fakturu, částka, splatnost, účet a VS.',
           'Pod názvem faktury pak uvidíte „Odesláno … na …“; kopie je na stránce E-maily.',
+        ],
+      },
+      {
+        id: 'odkaz',
+        title: 'Odkaz pro zákazníka (WhatsApp, SMS)',
+        steps: [
+          'Ve faktuře klepněte na [[Odkaz pro zákazníka]].',
+          'Odkaz [[Kopírovat]], nebo rovnou [[Poslat přes WhatsApp]], [[Sdílet…]] či [[Poslat SMS]] — zpráva s částkou, splatností a odkazem se předvyplní.',
+          'Zákazník na odkazu bez přihlášení uvidí fakturu, stav úhrady, velký QR kód pro bankovní aplikaci a údaje k platbě ke zkopírování, a stáhne si PDF.',
+        ],
+        tips: [
+          'Když zákazník odkaz poprvé otevře, uvidíte pod názvem faktury „Zákazník otevřel …“. Vaše vlastní otevření (přihlášení v aplikaci) se nepočítá.',
+          'Stejný odkaz je i v e-mailu s fakturou. Po zapsání úhrady se na něm ukáže Uhrazeno.',
         ],
       },
       {

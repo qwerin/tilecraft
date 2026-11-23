@@ -131,6 +131,13 @@ Stavy: `planned` (domluvená) → `in_progress` (realizace) → `done` (hotovo) 
 - Pole: číslo (= VS), zákazník (kopie údajů v době vystavení), datum vystavení, DUZP, splatnost, řádky
   `{text, unit, quantity, unit_price, vat_rate}`, celkem, rekapitulace DPH (plátce), zaplaceno dne, poznámka.
 - PDF (Go, `internal/invoicepdf`) s QR Platbou (SPAYD), e-mail s PDF, ISDOC export.
+- **Odkaz pro zákazníka** `/f/{token}` (bez přihlášení, i u zálohové faktury): doklad v podobě tisku, stav úhrady
+  (uhrazeno dne / k úhradě do / po splatnosti), velká QR Platba, platební údaje ke zkopírování (účet, VS, částka)
+  a „Stáhnout PDF“ (`/api/public/invoices/{token}/pdf`). Token je náhodný (128 bit), každá faktura ho má od vystavení
+  (starší faktury ho dostaly migrací); špatný token = 404, smazaná faktura = 404. Stránka neukazuje nic jiného z firmy
+  než údaje dodavatele z faktury. E-mail s fakturou obsahuje odkaz (PDF dál v příloze); v detailu faktury
+  „Odkaz pro zákazníka“ — kopírovat, WhatsApp, SMS, sdílet. První otevření zákazníkem se zapíše (`viewed_at`,
+  „Zákazník otevřel …“); otevření přihlášeným členem firmy se nepočítá.
 - Vystavení konečné faktury → zakázka `invoiced` (smazání faktury vrátí `done`). Zaplacení ručně (datum).
 
 ## 8. Přehled (dashboard)

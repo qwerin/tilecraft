@@ -6,7 +6,14 @@ import { QrCode } from '@/components/qr-code'
 import { fmtDate, money, num, unitLabel } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-export function InvoiceDocument({ inv, firm, className }: { inv: Invoice; firm: Account; className?: string }) {
+/** Údaje dokladu (faktura v aplikaci i veřejná faktura pro zákazníka /f/{token}). */
+export type DocInvoice = Pick<
+  Invoice,
+  'kind' | 'vat_payer' | 'number' | 'issued_on' | 'taxable_on' | 'due_on' | 'vs' | 'party' | 'lines' | 'vat_rows' | 'total' | 'paid_on' | 'qr_payment' | 'note'
+>
+export type DocFirm = Pick<Account, 'logo' | 'name' | 'street' | 'zip' | 'city' | 'registration_no' | 'vat_no' | 'phone' | 'email' | 'bank_account' | 'iban'>
+
+export function InvoiceDocument({ inv, firm, className }: { inv: DocInvoice; firm: DocFirm; className?: string }) {
   const payer = inv.vat_payer
   const showVat = payer && inv.kind === 'invoice'
   const hasDiscount = inv.lines.some((l) => (l.discount ?? 0) > 0)

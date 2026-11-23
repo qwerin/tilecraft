@@ -1077,6 +1077,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/invoices/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API public invoices by token */
+        get: operations["get-api-public-invoices-by-token"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/quotes/{token}": {
         parameters: {
             query?: never;
@@ -1643,6 +1660,8 @@ export interface components {
             overdue: boolean;
             paid_on: string | null;
             party: components["schemas"]["InvoiceParty"];
+            /** @description Link for the customer (view, PDF, QR Platba; no login) */
+            public_url: string;
             /** @description SPAYD payload of the QR Platba ("" when paid or without a bank account) */
             qr_payment: string;
             taxable_on: string;
@@ -1655,6 +1674,11 @@ export interface components {
             vat: number;
             vat_payer: boolean;
             vat_rows: components["schemas"]["VatRow"][];
+            /**
+             * Format: date-time
+             * @description When the customer first opened the link
+             */
+            viewed_at: string | null;
             /** @description Variable symbol */
             vs: string;
         };
@@ -2205,6 +2229,51 @@ export interface components {
             vat_no: string;
             vat_payer: boolean;
             web: string;
+        };
+        PublicInvoice: {
+            /** Format: int64 */
+            base: number;
+            due_on: string;
+            firm: components["schemas"]["PublicInvoiceFirm"];
+            issued_on: string;
+            /**
+             * @description advance = zálohová faktura
+             * @enum {string}
+             */
+            kind: "invoice" | "advance";
+            lines: components["schemas"]["InvoiceLine"][];
+            note: string;
+            number: string;
+            overdue: boolean;
+            paid_on: string | null;
+            party: components["schemas"]["InvoiceParty"];
+            /** @description SPAYD payload of the QR Platba ("" when paid or without a bank account) */
+            qr_payment: string;
+            taxable_on: string;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            vat: number;
+            vat_payer: boolean;
+            vat_rows: components["schemas"]["VatRow"][];
+            vs: string;
+        };
+        PublicInvoiceFirm: {
+            address: string;
+            bank_account: string;
+            city: string;
+            email: string;
+            iban: string;
+            /** @description URL of the logo; "" = none */
+            logo: string;
+            name: string;
+            phone: string;
+            registration_no: string;
+            street: string;
+            vat_no: string;
+            vat_payer: boolean;
+            web: string;
+            zip: string;
         };
         PublicQuote: {
             /** @description The customer may accept or reject now */
@@ -5010,6 +5079,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OAuthRedirect"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-api-public-invoices-by-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: {
+                tc_session?: string;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicInvoice"];
                 };
             };
             /** @description Error */

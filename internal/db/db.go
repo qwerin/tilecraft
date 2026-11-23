@@ -2,6 +2,8 @@
 package db
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -58,5 +60,24 @@ func Open(driver, dsn, logLevel string) (*gorm.DB, error) {
 
 // Migrate creates/updates the schema for all models.
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(model.All()...)
+	if err := db.AutoMigrate(model.All()...); err != nil {
+		return err
+	}
+	return fillInvoiceTokens(db)
+}
+
+// fillInvoiceTokens gives invoices from before the customer's link (/f/{token}) a random token.
+func fillInvoiceTokens(db *gorm.DB) error {
+	var ids []uint
+	if err := db.Model(&model.Invoice{}).Where("public_token IS NULL OR public_token = ''").Pluck("id", &ids).Error; err != nil {
+		return fmt.Errorf("invoice tokens: %w", err)
+	}
+	for _, id := range ids {
+		b := make([]byte, 16)
+		_, _ = rand.Read(b)
+		if err := db.Model(&model.Invoice{}).Where("id = ?", id).UpdateColumn("public_token", base64.RawURLEncoding.EncodeToString(b)).Error; err != nil {
+			return fmt.Errorf("invoice tokens: %w", err)
+		}
+	}
+	return nil
 }

@@ -267,6 +267,13 @@ func invoiceEmailBody(acc *model.Account, inv *Invoice, message string) string {
 	if m := strings.TrimSpace(message); m != "" {
 		b.WriteString("\n" + m + "\n")
 	}
+	if inv.PublicURL != "" {
+		what := "Fakturu si prohlédnete a stáhnete v PDF zde:"
+		if inv.QRPayment != "" {
+			what = "Fakturu si prohlédnete, stáhnete v PDF a zaplatíte QR Platbou zde:"
+		}
+		fmt.Fprintf(&b, "\n%s\n%s\n", what, inv.PublicURL)
+	}
 	if inv.PaidOn == nil && inv.Total > 0 {
 		fmt.Fprintf(&b, "\nČástka k úhradě: %s\nSplatnost: %s\n", money(inv.Total), czDate(inv.DueOn))
 		switch {

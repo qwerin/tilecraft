@@ -15,6 +15,7 @@ import { Route as InvitationsRouteImport } from './routes/invitations'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ASlugRouteRouteImport } from './routes/a/$slug/route'
+import { Route as FTokenRouteImport } from './routes/f/$token'
 import { Route as NTokenRouteImport } from './routes/n/$token'
 import { Route as OauthAuthorizeRouteImport } from './routes/oauth.authorize'
 import { Route as PrintSlugRouteRouteImport } from './routes/print/$slug/route'
@@ -71,6 +72,11 @@ const RegisterRoute = RegisterRouteImport.update({
 const ASlugRouteRoute = ASlugRouteRouteImport.update({
   id: '/a/$slug',
   path: '/a/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FTokenRoute = FTokenRouteImport.update({
+  id: '/f/$token',
+  path: '/f/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NTokenRoute = NTokenRouteImport.update({
@@ -217,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/a/$slug': typeof ASlugRouteRouteWithChildren
   '/print/$slug': typeof PrintSlugRouteRouteWithChildren
+  '/f/$token': typeof FTokenRoute
   '/n/$token': typeof NTokenRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/a/$slug/settings': typeof ASlugSettingsRouteRouteWithChildren
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/print/$slug': typeof PrintSlugRouteRouteWithChildren
+  '/f/$token': typeof FTokenRoute
   '/n/$token': typeof NTokenRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/a/$slug/account': typeof ASlugAccountRoute
@@ -286,6 +294,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/a/$slug': typeof ASlugRouteRouteWithChildren
   '/print/$slug': typeof PrintSlugRouteRouteWithChildren
+  '/f/$token': typeof FTokenRoute
   '/n/$token': typeof NTokenRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/a/$slug/settings': typeof ASlugSettingsRouteRouteWithChildren
@@ -323,6 +332,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/a/$slug'
     | '/print/$slug'
+    | '/f/$token'
     | '/n/$token'
     | '/oauth/authorize'
     | '/a/$slug/settings'
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/print/$slug'
+    | '/f/$token'
     | '/n/$token'
     | '/oauth/authorize'
     | '/a/$slug/account'
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/a/$slug'
     | '/print/$slug'
+    | '/f/$token'
     | '/n/$token'
     | '/oauth/authorize'
     | '/a/$slug/settings'
@@ -427,6 +439,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ASlugRouteRoute: typeof ASlugRouteRouteWithChildren
   PrintSlugRouteRoute: typeof PrintSlugRouteRouteWithChildren
+  FTokenRoute: typeof FTokenRoute
   NTokenRoute: typeof NTokenRoute
   OauthAuthorizeRoute: typeof OauthAuthorizeRoute
 }
@@ -473,6 +486,13 @@ declare module '@tanstack/react-router' {
       path: '/a/$slug'
       fullPath: '/a/$slug'
       preLoaderRoute: typeof ASlugRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/$token': {
+      id: '/f/$token'
+      path: '/f/$token'
+      fullPath: '/f/$token'
+      preLoaderRoute: typeof FTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/n/$token': {
@@ -752,6 +772,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ASlugRouteRoute: ASlugRouteRouteWithChildren,
   PrintSlugRouteRoute: PrintSlugRouteRouteWithChildren,
+  FTokenRoute: FTokenRoute,
   NTokenRoute: NTokenRoute,
   OauthAuthorizeRoute: OauthAuthorizeRoute,
 }
