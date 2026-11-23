@@ -41,6 +41,7 @@ export const codeMessages: Record<string, string> = {
   referenced: 'Záznam se používá jinde (např. záloha odečtená na faktuře), nelze ho smazat.',
   quote_locked: 'Nabídka už je rozhodnutá a nejde měnit. Vraťte ji do rozpracovaných nebo ji zduplikujte.',
   job_exists: 'Z nabídky už je vytvořená zakázka.',
+  revision_quote: 'Upravená nabídka patří k existující zakázce — novou zakázku z ní vytvářet nejde.',
   not_accepted: 'Nabídka nebyla přijata, zakázku z ní vytvořit nejde.',
   invoiced: 'Už vyfakturováno: zakázka už má fakturu, nebo je faktura uhrazená (pak ji nejde měnit ani smazat).',
   nothing_to_bill: 'Zakázka nemá žádné položky s cenou, není co fakturovat.',

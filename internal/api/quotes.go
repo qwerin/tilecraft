@@ -71,7 +71,8 @@ type QuoteSummary struct {
 	IssuedOn   string      `json:"issued_on"`
 	ValidUntil string      `json:"valid_until"`
 	Total      int64       `json:"total" doc:"haléře with VAT"`
-	JobID      *uint       `json:"job_id"`
+	JobID      *uint       `json:"job_id" doc:"The job made from the quote, or the job a revised quote updates"`
+	Revision   bool        `json:"revision" doc:"A revised quote of a job (extra work); accepting it creates no job"`
 	UpdatedAt  time.Time   `json:"updated_at"`
 }
 
@@ -97,6 +98,7 @@ type Quote struct {
 	DecidedAt    *time.Time   `json:"decided_at"`
 	DecidedBy    string       `json:"decided_by"`
 	Reason       string       `json:"reason"`
+	RevisionOf   *RevisionOf  `json:"revision_of,omitempty" doc:"For a revised quote: the job and the original quote it updates"`
 }
 
 // QuoteSend sends the link to the customer by e-mail, or only marks the quote sent.
@@ -144,7 +146,10 @@ func (s *server) expired(q *model.Quote) bool {
 }
 
 func (s *server) toQuoteSummary(q *model.Quote, jobID *uint) QuoteSummary {
-	return QuoteSummary{ID: q.ID, Number: q.Number, Title: q.Title, Customer: toCustomerRef(&q.Customer), State: q.State,
+	if q.JobID != nil {
+		jobID = q.JobID
+	}
+	return QuoteSummary{Revision: q.JobID != nil, ID: q.ID, Number: q.Number, Title: q.Title, Customer: toCustomerRef(&q.Customer), State: q.State,
 		Expired: s.expired(q), IssuedOn: q.IssuedOn, ValidUntil: q.ValidUntil, Total: q.Total, JobID: jobID, UpdatedAt: q.UpdatedAt}
 }
 
@@ -248,7 +253,8 @@ func (s *server) toQuote(ctx context.Context, q *model.Quote) (Quote, error) {
 		VatRate: q.VatRate, VatPayer: acc.VatPayer, Discount: q.Discount, ShowMeasure: q.ShowMeasure, Rooms: rooms,
 		Measurements: measurements(rooms), Lines: lines, Totals: totalsOf(quoteLineData(q), q.Discount, q.VatRate),
 		PublicURL: s.publicQuoteURL(q), AppURL: strings.TrimRight(s.cfg.PublicURL, "/") + "/a/" + acc.Slug + "/quotes/" + fmt.Sprint(q.ID),
-		SentAt: q.SentAt, SentTo: q.SentTo, DecidedAt: q.DecidedAt, DecidedBy: q.DecidedBy, Reason: q.Reason}, nil
+		SentAt: q.SentAt, SentTo: q.SentTo, DecidedAt: q.DecidedAt, DecidedBy: q.DecidedBy, Reason: q.Reason,
+		RevisionOf: s.revisionOf(s.db.WithContext(ctx), q)}, nil
 }
 
 func (s *server) quoteOut(ctx context.Context, id uint) (*Out[Quote], error) {
@@ -467,8 +473,12 @@ func (s *server) sendQuote(ctx context.Context, in *struct {
 		if err != nil {
 			return nil, err
 		}
+		kind := "Cenová nabídka"
+		if q.JobID != nil {
+			kind = "Upravená cenová nabídka"
+		}
 		e := model.Email{QuoteID: &q.ID, Kind: "quote", To: to, ReplyTo: acc.Email,
-			Subject: fmt.Sprintf("Cenová nabídka %s — %s", q.Number, acc.Name), Body: s.quoteEmailBody(acc, q, in.Body.Message)}
+			Subject: fmt.Sprintf("%s %s — %s", kind, q.Number, acc.Name), Body: s.quoteEmailBody(acc, q, in.Body.Message)}
 		if err := s.sendEmail(ctx, &e, mail.Attachment{Filename: invoicepdf.QuoteFilename(q.Number), ContentType: "application/pdf", Data: pdf}); err != nil {
 			return nil, err
 		}
@@ -487,7 +497,11 @@ func (s *server) quoteEmailBody(acc *model.Account, q *model.Quote, message stri
 	if m := strings.TrimSpace(message); m != "" {
 		b.WriteString(m + "\n\n")
 	} else {
-		b.WriteString("Dobrý den,\n\nposíláme cenovou nabídku „" + q.Title + "“.\n\n")
+		if q.JobID != nil {
+			b.WriteString("Dobrý den,\n\nposíláme upravenou cenovou nabídku „" + q.Title + "“ podle skutečně provedených prací, včetně prací a nákladů navíc.\n\n")
+		} else {
+			b.WriteString("Dobrý den,\n\nposíláme cenovou nabídku „" + q.Title + "“.\n\n")
+		}
 	}
 	fmt.Fprintf(&b, "Nabídku si prohlédnete, vytisknete a jedním kliknutím přijmete zde:\n%s\n\n", s.publicQuoteURL(q))
 	fmt.Fprintf(&b, "Celkem: %s, platnost do %s.\n\nS pozdravem\n%s", money(q.Total), czDate(q.ValidUntil), acc.Name)
@@ -524,6 +538,10 @@ func (s *server) decideQuote(ctx context.Context, in *struct {
 	}
 	if err := s.scoped(ctx).Model(q).Updates(upd).Error; err != nil {
 		return nil, dbErr(err, "quote")
+	}
+	if in.Body.State != model.QuoteDraft {
+		q.State, q.DecidedBy, q.Reason = in.Body.State, memberName(auth.MemberFrom(ctx)), in.Body.Reason
+		s.noteRevisionDecision(s.db.WithContext(ctx), q, auth.UserFrom(ctx).ID)
 	}
 	return s.quoteOut(ctx, q.ID)
 }

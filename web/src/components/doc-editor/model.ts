@@ -36,6 +36,8 @@ export interface DocLine {
   rooms: string[] // jména místností pro measure; prázdné = všechny
   waste: number // %
   note: string
+  /** Práce / náklad navíc (přidané během zakázky, SPEC §6.1). */
+  extra?: boolean
 }
 
 /** Řádek s dopočítaným množstvím a částkou (haléře). */
@@ -74,6 +76,7 @@ export function lineFromApi(l: ApiLine): DocLine {
     rooms: l.rooms ?? [],
     waste: l.waste,
     note: l.note,
+    extra: l.extra || undefined,
   }
 }
 
@@ -92,6 +95,7 @@ export function lineToInput(l: DocLine): ApiLineInput {
     rooms: l.measure ? l.rooms.map((n) => n.trim()) : [],
     waste: clampPct(l.waste),
     note: l.note,
+    extra: l.extra || undefined,
   }
 }
 

@@ -84,6 +84,7 @@ type Quote struct {
 	DecidedBy   string // name the customer gave (or the user's name)
 	Reason      string // customer's note to the decision
 	Total       int64  // with VAT; stored for lists
+	JobID       *uint  `gorm:"index"` // a revised quote of this job (extra work, SPEC §6.1); accepting it creates no job
 	CreatedByID uint
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -106,6 +107,7 @@ type LineData struct {
 	Rooms            []string `gorm:"serializer:json"` // rooms of the measure ("" = all)
 	Waste            float64
 	Note             string
+	Extra            bool `gorm:"not null;default:false"` // work or cost added during the job (navíc, SPEC §6.1)
 	Position         int
 }
 

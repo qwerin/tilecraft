@@ -49,7 +49,9 @@ function PublicQuotePage() {
 
         <article className="overflow-hidden rounded-2xl border bg-card shadow-sm">
           <header className="border-b px-5 pt-5 pb-4 sm:px-8 sm:pt-7">
-            <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">Cenová nabídka {q.number}</p>
+            <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+              {q.revises ? 'Upravená cenová nabídka' : 'Cenová nabídka'} {q.number}
+            </p>
             <h1 className="mt-1 font-heading text-2xl leading-tight font-semibold sm:text-3xl">{q.title}</h1>
             <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
               <Fact label="Pro">{q.customer.name}</Fact>
@@ -57,6 +59,18 @@ function PublicQuotePage() {
               <Fact label="Vystaveno">{fmtDate(q.issued_on)}</Fact>
               <Fact label="Platí do">{fmtDate(q.valid_until)}</Fact>
             </dl>
+            {q.revises && (
+              <p className="mt-4 rounded-lg bg-warning/12 px-3 py-2 text-sm">
+                {q.revises.number ? (
+                  <>
+                    Aktualizace nabídky <span className="font-medium">{q.revises.number}</span> ({money(q.revises.total)}) podle skutečně provedených prací.
+                  </>
+                ) : (
+                  'Upravená nabídka podle skutečně provedených prací.'
+                )}{' '}
+                Práce a náklady navíc jsou označené <ExtraBadge />.
+              </p>
+            )}
           </header>
 
           {q.intro && <p className="border-b px-5 py-4 text-sm whitespace-pre-line sm:px-8">{q.intro}</p>}
@@ -218,11 +232,17 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+function ExtraBadge() {
+  return <span className="rounded-md bg-warning/25 px-1.5 py-0.5 align-middle text-[11px] font-semibold text-warning-foreground uppercase dark:text-warning">navíc</span>
+}
+
 function LineItem({ l }: { l: Line }) {
   return (
     <li className="flex items-start justify-between gap-3 py-2.5 text-sm">
       <div className="min-w-0">
-        <p className="font-medium">{l.name}</p>
+        <p className="font-medium">
+          {l.name} {l.extra && <ExtraBadge />}
+        </p>
         <p className="text-xs text-muted-foreground tabular-nums">
           {num(l.quantity)} {unitLabel(l.unit)} × {money(l.unit_price)}
           {l.discount > 0 && !l.customer_supplied && <span className="text-success"> − {num(l.discount)} %</span>}

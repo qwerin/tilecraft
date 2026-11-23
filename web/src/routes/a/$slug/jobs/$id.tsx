@@ -4,7 +4,9 @@ import {
   ArrowLeftIcon,
   BanIcon,
   CalendarDaysIcon,
+  CarIcon,
   CheckCheckIcon,
+  FileTextIcon,
   EllipsisVerticalIcon,
   MapPinIcon,
   NavigationIcon,
@@ -29,8 +31,11 @@ import { JobDiary } from '@/components/jobs/job-diary'
 import { JobEditDialog } from '@/components/jobs/job-edit-dialog'
 import { JobItemsEditor } from '@/components/jobs/job-items-editor'
 import { JobLines, JobMeasurements, QuoteComparison } from '@/components/jobs/job-lines'
+import { JobExtrasActions, TravelDialog } from '@/components/jobs/job-extras'
 import { JobPhotos } from '@/components/jobs/job-photos'
-import { JobStateBadge, JobSteps } from '@/components/jobs/job-state'
+import { JobStages } from '@/components/jobs/job-stages'
+import { jobChanged, travelLine } from '@/components/jobs/stages'
+import { JobStateBadge } from '@/components/jobs/job-state'
 import { jobTerm } from '@/components/jobs/utils'
 import { PageError, PageLoading } from '@/components/page-states'
 import {
@@ -50,8 +55,9 @@ import { useFirm } from '@/hooks/use-firm'
 import { fmtDate, money } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-// Detail zakázky (SPEC §6): zákazník (volat, navigovat), stav velkými tlačítky, termín a parta, fotky, deník,
-// zaměření, položky, srovnání s nabídkou a faktury. Parťák vidí vše bez cen a mění stav (ne zrušení).
+// Detail zakázky (SPEC §6): zákazník (volat, navigovat), etapy (Navedení → Zhotovení → Ukončení → Faktura) s kontrolním
+// seznamem a tlačítky dalšího kroku, termín a parta, fotky, deník, zaměření, položky s pracemi navíc, srovnání s nabídkou
+// a faktury. Parťák vidí vše bez cen, mění stav (ne zrušení) a zapisuje práce navíc bez ceny.
 
 export const Route = createFileRoute('/a/$slug/jobs/$id')({
   component: JobPage,
@@ -87,6 +93,7 @@ function JobPage() {
               <JobLines
                 job={job}
                 isManager={isManager}
+                extrasActions={job.state !== 'invoiced' && job.state !== 'cancelled' && <JobExtrasActions slug={slug} job={job} isManager={isManager} />}
                 actions={
                   isManager &&
                   job.state !== 'invoiced' && (
@@ -243,9 +250,25 @@ const backStep: Partial<Record<JobState, { to: 'planned' | 'in_progress'; label:
   done: { to: 'in_progress', label: 'Vrátit do realizace' },
 }
 
-/** Stav zakázky: průběh a velké tlačítko dalšího kroku (Zahájit → Hotovo → Vyfakturovat). */
+/**
+ * Etapy zakázky s kontrolním seznamem a velkým tlačítkem dalšího kroku (Zahájit → Hotovo → Vyfakturovat);
+ * při ukončení kancelář doplní cestovné a pošle zákazníkovi upravenou nabídku (práce navíc).
+ */
 function StateCard({ job, slug, isManager, onInvoice }: { job: Job; slug: string; isManager: boolean; onInvoice: () => void }) {
+  const navigate = useNavigate()
   const setState = useFirmMutation(slug, jobMutations.setState(slug, job.id), [['jobs'], ['dashboard']])
+  const revise = useFirmMutation(slug, jobMutations.revisedQuote(slug, job.id), [['jobs'], ['quotes']])
+  const [travel, setTravel] = useState(false)
+  const rev = job.revisions.at(-1)
+  const finishing = isManager && (job.state === 'in_progress' || job.state === 'done')
+  const openQuote = (id: number) => void navigate({ to: '/a/$slug/quotes/$id', params: { slug, id: String(id) } })
+  const onRevise = () =>
+    revise.mutate(undefined, {
+      onSuccess: (q) => {
+        toast.success(rev?.state === 'draft' ? `Upravená nabídka ${q.number} aktualizována` : `Upravená nabídka ${q.number} vytvořena`)
+        openQuote(q.id)
+      },
+    })
   const next = nextStep[job.state]
   const back = backStep[job.state]
   const move = (to: Exclude<JobState, 'invoiced'>, msg: string) => setState.mutate(to, { onSuccess: () => toast.success(msg) })
@@ -285,7 +308,9 @@ function StateCard({ job, slug, isManager, onInvoice }: { job: Job; slug: string
   const hint =
     job.state === 'done'
       ? isManager
-        ? 'Práce je hotová — vystavte fakturu.'
+        ? jobChanged(job) && job.revisions.at(-1)?.state !== 'accepted'
+          ? 'Práce je hotová — doplňte cestovné, pošlete upravenou nabídku a vystavte fakturu.'
+          : 'Práce je hotová — doplňte cestovné a vystavte fakturu.'
         : 'Práce je hotová. Fakturu vystaví kancelář.'
       : job.state === 'invoiced'
         ? job.invoices?.some((i) => i.kind === 'invoice' && !i.paid_on)
@@ -295,12 +320,31 @@ function StateCard({ job, slug, isManager, onInvoice }: { job: Job; slug: string
           ? 'Zakázka je zrušená.'
           : null
 
+  const finishActions = finishing && (
+    <div className="flex flex-wrap gap-2">
+      <Button variant="outline" onClick={() => setTravel(true)}>
+        <CarIcon /> {travelLine(job) ? 'Cestovné' : 'Doplnit cestovné'}
+      </Button>
+      {rev && (
+        <Button variant="outline" onClick={() => openQuote(rev.id)}>
+          <FileTextIcon /> Upravená nabídka {rev.number}
+        </Button>
+      )}
+      {(rev ? rev.state === 'draft' || rev.state === 'rejected' : jobChanged(job)) && (
+        <Button variant={job.state === 'done' && !rev ? 'default' : 'outline'} disabled={revise.isPending || job.lines.length === 0} onClick={onRevise}>
+          <FileTextIcon /> {rev?.state === 'draft' ? 'Aktualizovat podle zakázky' : 'Vytvořit upravenou nabídku'}
+        </Button>
+      )}
+    </div>
+  )
+
   return (
     <section className="rounded-xl border bg-card p-4 shadow-xs">
-      <JobSteps state={job.state} />
-      {(primary || hint || back) && (
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <JobStages job={job} isManager={isManager} />
+      {(primary || hint || back || finishActions) && (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           {primary}
+          {finishActions}
           {hint && <p className="text-sm text-muted-foreground sm:flex-1">{hint}</p>}
           {back && (
             <Button
@@ -315,6 +359,7 @@ function StateCard({ job, slug, isManager, onInvoice }: { job: Job; slug: string
           )}
         </div>
       )}
+      {isManager && <TravelDialog slug={slug} job={job} open={travel} onOpenChange={setTravel} />}
     </section>
   )
 }

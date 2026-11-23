@@ -24,11 +24,20 @@ const measureLabels: Record<string, string> = {
   piece: 'kusy',
 }
 
-export function JobLines({ job, isManager, actions }: { job: Job; isManager: boolean; actions?: ReactNode }) {
-  const groups = sections.map((s) => ({ ...s, lines: job.lines.filter((l) => l.section === s.key) })).filter((g) => g.lines.length > 0)
+const sectionShort: Record<string, string> = { work: 'práce', material: 'materiál', other: 'ostatní' }
+
+/**
+ * Položky zakázky: původní (z nabídky) po sekcích, pod nimi „Práce a náklady navíc“ (řádky `extra`, SPEC §6.1)
+ * s rychlým přidáním (`extrasActions`). Celkový součet je za celou zakázku.
+ */
+export function JobLines({ job, isManager, actions, extrasActions }: { job: Job; isManager: boolean; actions?: ReactNode; extrasActions?: ReactNode }) {
+  const base = job.lines.filter((l) => !l.extra)
+  const extras = job.lines.filter((l) => l.extra)
+  const groups = sections.map((s) => ({ ...s, lines: base.filter((l) => l.section === s.key) })).filter((g) => g.lines.length > 0)
+  const cols = isManager ? 5 : 2
   return (
     <Panel id="polozky" title="Položky" actions={actions}>
-      {groups.length === 0 ? (
+      {groups.length === 0 && extras.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted-foreground">Zakázka nemá žádné položky.</p>
       ) : (
         <div className="-mx-4 overflow-x-auto">
@@ -61,20 +70,47 @@ export function JobLines({ job, isManager, actions }: { job: Job; isManager: boo
                     <td colSpan={4} className="text-right text-xs text-muted-foreground">
                       {g.label} celkem
                     </td>
-                    <td className="text-right font-medium tabular-nums">{money(job.totals[g.key])}</td>
+                    <td className="text-right font-medium tabular-nums">{money(g.lines.reduce((a, l) => a + l.amount, 0))}</td>
                   </tr>
                 )}
               </tbody>
             ))}
+            {extras.length > 0 && (
+              <tbody id="navic">
+                <tr>
+                  <td colSpan={cols} className="bg-warning/12 text-xs font-semibold tracking-wide text-foreground/80 uppercase">
+                    Práce a náklady navíc
+                  </td>
+                </tr>
+                {extras.map((l) => (
+                  <LineRow key={l.id} line={l} isManager={isManager} tag={sectionShort[l.section]} />
+                ))}
+                {isManager && (
+                  <tr className="border-t">
+                    <td colSpan={4} className="text-right text-xs text-muted-foreground">
+                      Navíc celkem
+                    </td>
+                    <td className="text-right font-medium tabular-nums">{money(job.extras.amount)}</td>
+                  </tr>
+                )}
+              </tbody>
+            )}
           </table>
         </div>
       )}
-      {isManager && groups.length > 0 && <Totals job={job} />}
+      {extrasActions && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+          {extras.length === 0 && <span className="mr-auto text-sm text-muted-foreground">Práce nebo náklady navíc zapíšete tady:</span>}
+          {extrasActions}
+        </div>
+      )}
+      {isManager && job.lines.length > 0 && <Totals job={job} />}
     </Panel>
   )
 }
 
-function LineRow({ line: l, isManager }: { line: JobLine; isManager: boolean }) {
+function LineRow({ line: l, isManager, tag }: { line: JobLine; isManager: boolean; tag?: string }) {
+  const unpriced = l.extra && isManager && l.unit_price === 0 && !l.customer_supplied
   return (
     <tr className="border-t border-border/60 align-top">
       <td>
@@ -87,6 +123,8 @@ function LineRow({ line: l, isManager }: { line: JobLine; isManager: boolean }) 
               {l.waste > 0 && ` + ${num(l.waste)} % prořez`}
             </span>
           )}
+          {tag && <StatusBadge tone="outline">{tag}</StatusBadge>}
+          {unpriced && <StatusBadge tone="warning">k nacenění</StatusBadge>}
           {l.customer_supplied && <StatusBadge tone="outline">dodá zákazník</StatusBadge>}
           {l.note && <span className="w-full">{l.note}</span>}
         </div>
@@ -249,6 +287,15 @@ export function QuoteComparison({ slug, job }: { slug: string; job: Job }) {
             })}
         </tbody>
       </table>
+      {job.extras.count > 0 && (
+        <p className="mt-2 flex flex-wrap justify-between gap-x-2 border-t pt-2 text-sm">
+          <a href="#navic" className="hover:underline">
+            Z toho navíc ({job.extras.count} {job.extras.count === 1 ? 'položka' : job.extras.count < 5 ? 'položky' : 'položek'})
+          </a>
+          <span className="font-medium tabular-nums">+{money(job.extras.amount)}</span>
+          {job.extras.unpriced > 0 && <span className="w-full text-xs text-warning-foreground dark:text-warning">{job.extras.unpriced} k nacenění (zapsal parťák bez ceny)</span>}
+        </p>
+      )}
       {job.totals.total !== q.totals.total && (
         <p className="mt-2 text-xs text-muted-foreground">
           {job.totals.total > q.totals.total ? 'Vícepráce nebo víc materiálu než v nabídce.' : 'Méně práce nebo materiálu než v nabídce.'} Fakturuje se podle skutečnosti.

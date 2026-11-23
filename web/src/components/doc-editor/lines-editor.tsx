@@ -49,17 +49,19 @@ export interface LinesEditorProps {
   readOnly?: boolean
   /** Bez cen a částek (parťák). */
   hidePrices?: boolean
+  /** Bez nabídky „obvyklých položek“ ze zaměření (např. práce navíc u zakázky). */
+  hideUsual?: boolean
   className?: string
 }
 
 const money0 = (n: number | null | undefined) => fromMinor(n ?? 0)
 
 /** Řádky dokladu po sekcích Práce / Materiál / Ostatní: z ceníku nebo vlastní, množství ze zaměření nebo ručně. */
-export function LinesEditor({ value, onChange, rooms, catalog, readOnly, hidePrices, className }: LinesEditorProps) {
+export function LinesEditor({ value, onChange, rooms, catalog, readOnly, hidePrices, hideUsual, className }: LinesEditorProps) {
   const computed = useMemo(() => computeLines(value, rooms), [value, rooms])
   const [picker, setPicker] = useState<Section | 'all' | null>(null)
   const [open, setOpen] = useState<number | null>(null)
-  const usual = useMemo(() => (readOnly ? [] : usualLines(catalog, rooms, value)), [readOnly, catalog, rooms, value])
+  const usual = useMemo(() => (readOnly || hideUsual ? [] : usualLines(catalog, rooms, value)), [readOnly, hideUsual, catalog, rooms, value])
   const roomNames = rooms.map((r) => r.name.trim()).filter(Boolean)
 
   const set = (i: number, l: DocLine) => onChange(value.map((x, j) => (j === i ? l : x)))

@@ -113,11 +113,22 @@ var mcpTools = []mcpTool{
 	{Name: "list_jobs", Title: "Zakázky", Method: http.MethodGet, Path: "/jobs",
 		Description: "Jobs (zakázky) with filters: state (planned, in_progress, done, invoiced, cancelled, open), customer_id, from/to (calendar), q."},
 	{Name: "get_job", Title: "Detail zakázky", Method: http.MethodGet, Path: "/jobs/{id}",
-		Description: "Full job: site, dates, crew, measurements, lines (real quantities) and totals compared to the quote, diary notes, photos, invoices."},
+		Description: "Full job: site, dates, crew, measurements, lines (real quantities; extra: true = work or cost added during the job) and totals compared to the quote, " +
+			"extras (count, unpriced, amount), revised quotes, diary notes, photos, invoices."},
 	{Name: "create_job_from_quote", Title: "Zakázka z nabídky", Method: http.MethodPost, Path: "/quotes/{id}/job", Write: true,
 		Description: "Turn a quote into a job (accepts the quote if the customer agreed another way). Optional start_on/end_on."},
 	{Name: "update_job", Title: "Upravit zakázku", Method: http.MethodPut, Path: "/jobs/{id}", Write: true,
-		Description: "Replace a job (PUT: load it with get_job and send it complete): dates, crew, real quantities, extra work."},
+		Description: "Replace a job (PUT: load it with get_job and send it complete): dates, crew, real quantities, extra work. " +
+			"Keep `extra` of every line: true marks work or costs added during the job (printed as \"navíc\" in the revised quote)."},
+	{Name: "add_job_extra", Title: "Práce navíc", Method: http.MethodPost, Path: "/jobs/{id}/extras", Write: true,
+		Description: "Record extra work (section work) or an extra material/cost (section material) on a job: name, quantity, unit, optional unit_price in haléře. " +
+			"Crew members cannot set prices: their lines stay unpriced for the office."},
+	{Name: "set_job_travel", Title: "Cestovné", Method: http.MethodPut, Path: "/jobs/{id}/travel", Write: true,
+		Description: "Set the travel costs of a job: km of one trip × trips (price per km from the catalog item \"Cestovné\" unless per_km is given) or a lump_sum; " +
+			"creates or updates the \"Cestovné\" line in section other."},
+	{Name: "create_revised_quote", Title: "Upravená nabídka", Method: http.MethodPost, Path: "/jobs/{id}/revised-quote", Write: true,
+		Description: "Create (or refresh the draft of) the revised quote of a job: a new draft quote with the job's current lines and measurements, " +
+			"extras marked, linked to the job. It is not sent: the user sends it to the customer. Accepting it creates no new job."},
 	{Name: "set_job_state", Title: "Stav zakázky", Method: http.MethodPost, Path: "/jobs/{id}/state", Write: true,
 		Description: "Move a job to planned, in_progress, done or cancelled (invoicing sets invoiced)."},
 	{Name: "add_job_note", Title: "Zápis do deníku", Method: http.MethodPost, Path: "/jobs/{id}/notes", Write: true,

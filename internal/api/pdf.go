@@ -151,6 +151,9 @@ func (s *server) quotePDF(ctx context.Context, acc *model.Account, q *model.Quot
 	if q.State != model.QuoteDraft {
 		doc.URL = s.publicQuoteURL(q)
 	}
+	if r := s.revisionOf(s.db.WithContext(ctx), q); r != nil {
+		doc.Revised, doc.Revises, doc.RevisesSum = true, r.QuoteNumber, r.QuoteTotal
+	}
 	for _, sec := range []struct {
 		key string
 		sum int64
@@ -163,7 +166,10 @@ func (s *server) quotePDF(ctx context.Context, acc *model.Account, q *model.Quot
 			}
 			pl := invoicepdf.Line{Text: l.Name, Unit: l.Unit, Quantity: l.Quantity, UnitPrice: l.UnitPrice, Discount: l.Discount, Amount: l.Amount(), Note: l.Note}
 			if l.CustomerSupplied {
-				pl.Note = strings.TrimSpace("dodá zákazník " + l.Note)
+				pl.Note = strings.TrimSpace("dodá zákazník " + pl.Note)
+			}
+			if l.Extra && q.JobID != nil {
+				pl.Note = strings.TrimSpace("navíc " + pl.Note)
 			}
 			ps.Lines = append(ps.Lines, pl)
 		}

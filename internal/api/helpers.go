@@ -51,6 +51,7 @@ const (
 	CodeJobExists          = "job_exists"
 	CodeNotAccepted        = "not_accepted"
 	CodeNoEmail            = "no_email"
+	CodeRevisionQuote      = "revision_quote" // a revised quote belongs to its job, no job is made from it
 
 	CodeOAuthInvalidClient   = "oauth_invalid_client"
 	CodeOAuthInvalidRedirect = "oauth_invalid_redirect"

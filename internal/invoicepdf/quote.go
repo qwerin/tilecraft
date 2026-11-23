@@ -46,6 +46,9 @@ type Quote struct {
 	Note        string
 	Terms       string
 	URL         string // where the customer accepts the quote, "" = not printed
+	Revised     bool   // a revised quote of a job (extra work): "Upravená cenová nabídka"
+	Revises     string // number of the original quote it updates, "" = none
+	RevisesSum  int64  // total of the original quote (haléře)
 }
 
 // QuoteFilename is the quote's file name.
@@ -56,10 +59,14 @@ func QuoteFilename(number string) string {
 // QuotePDF renders the quote.
 func QuotePDF(q Quote) (_ []byte, err error) {
 	defer recovered(&err)
-	ref := "Cenová nabídka č. " + q.Number
+	kind := "Cenová nabídka"
+	if q.Revised {
+		kind = "Upravená cenová nabídka"
+	}
+	ref := kind + " č. " + q.Number
 	d := newDoc(strings.TrimSpace(ref+" "+q.Title), q.Firm.Name, ref)
 	d.AddPage()
-	d.header(q.Logo, "Cenová nabídka", q.Title, q.Number)
+	d.header(q.Logo, kind, q.Title, q.Number)
 	d.parties("Zhotovitel", q.Firm, "Objednatel", q.Customer)
 	d.onBreak = func() { d.continuation(ref) }
 
@@ -70,6 +77,9 @@ func QuotePDF(q Quote) (_ []byte, err error) {
 	var rightCol [][2]string
 	if s := strings.TrimSpace(q.SiteAddress); s != "" {
 		rightCol = append(rightCol, [2]string{"Místo realizace", s})
+	}
+	if q.Revises != "" {
+		left = append(left, [2]string{"Původní nabídka", q.Revises + " (" + Money(q.RevisesSum) + ")"})
 	}
 	d.infoGrid(left, rightCol)
 	d.paragraph("", q.Intro)
