@@ -103,6 +103,7 @@ func seedDemo(ctx context.Context, s *server, db *gorm.DB) error {
 	}
 	qty := func(l LineInput, q float64) LineInput { l.Quantity, l.Measure = &q, ptr(""); return l }
 	supplied := func(l LineInput, q float64) LineInput { l = qty(l, q); l.CustomerSupplied = true; return l }
+	tier := func(l LineInput, t int) LineInput { l.Tier = t; return l }
 
 	customers := []CustomerInput{
 		{Name: "Marie Nováková", Email: "novakova@example.cz", Phone: "+420 603 111 222", Street: "Lipová 8", City: "Brno", Zip: "612 00"},
@@ -137,8 +138,8 @@ func seedDemo(ctx context.Context, s *server, db *gorm.DB) error {
 		line("Montáž pancéřového pletiva"),
 		qty(line("Hydroizolační stěrka (2 vrstvy)"), 6.6),
 		qty(line("Montáž hydroizolační pásky"), 11.52),
-		line("Montáž dlažby, spárování epoxidem, silikon"),
-		line("Montáž obkladu, spárování, silikon"),
+		tier(line("Montáž dlažby, spárování epoxidem, silikon"), 2),
+		tier(line("Montáž obkladu, spárování, silikon"), 2),
 		qty(line("Atypické prvky (tvar, sparování epoxidem)"), 1.8),
 		qty(line("Montáž platformy pod vaničku"), 1),
 		line("Montáž ukončovací lišty"),
@@ -246,7 +247,7 @@ func seedDemo(ctx context.Context, s *server, db *gorm.DB) error {
 	kitchen := []calc.Room{{Name: "Kuchyň", Surfaces: []calc.Surface{{Name: "Kuchyňská linka", Kind: calc.KindWall, Width: 3.4, Height: 0.6}}}}
 	q3, err := s.createQuote(ctx, &struct{ Body QuoteInput }{Body: QuoteInput{CustomerID: ids[1], Title: "Obklad kuchyňské linky — Dvořák",
 		SiteAddress: "Na Výsluní 21, Kuřim", IssuedOn: addDays(today, -4), Rooms: kitchen, Lines: []LineInput{
-			line("Montáž obkladu, spárování, silikon"), qty(line("Lepidlo Codex CX9 25 kg"), 1), line("Obklad (dle výběru zákazníka)"),
+			tier(line("Montáž obkladu, spárování, silikon"), 1), qty(line("Lepidlo Codex CX9 25 kg"), 1), line("Obklad (dle výběru zákazníka)"),
 			qty(line("Cestovné"), 40)}}})
 	if err != nil {
 		return err
@@ -260,8 +261,9 @@ func seedDemo(ctx context.Context, s *server, db *gorm.DB) error {
 	stairs := []calc.Room{{Name: "Schodiště 1. NP", Surfaces: []calc.Surface{{Name: "Stupně", Kind: calc.KindFloor, Width: 1.2, Height: 0.3, Count: 16},
 		{Name: "Podstupnice", Kind: calc.KindWall, Width: 1.2, Height: 0.17, Count: 16}, {Name: "Sokl", Kind: calc.KindLength, Width: 9.6}}}}
 	_, err = s.createQuote(ctx, &struct{ Body QuoteInput }{Body: QuoteInput{CustomerID: ids[2], Title: "Schodiště — BD Slunečná",
-		SiteAddress: "Slunečná 1, Brno", Rooms: stairs, Lines: []LineInput{line("Montáž dlažby, spárování epoxidem, silikon"),
-			line("Montáž obkladu, spárování, silikon"), line("Montáž ukončovací lišty"), line("Dlažba (dle výběru zákazníka)"),
+		SiteAddress: "Slunečná 1, Brno", Rooms: stairs, Lines: []LineInput{tier(line("Montáž dlažby, spárování epoxidem, silikon"), 3),
+			tier(line("Montáž obkladu, spárování, silikon"), 1), line("Montáž ukončovací lišty"),
+			qty(line("Kamenický roh (broušení hrany 45°)"), 19.2), line("Dlažba (dle výběru zákazníka)"),
 			qty(line("Odvoz a likvidace odpadu"), 1)}}})
 	return err
 }

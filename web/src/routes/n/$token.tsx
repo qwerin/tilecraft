@@ -227,6 +227,7 @@ function LineItem({ l }: { l: Line }) {
           {num(l.quantity)} {unitLabel(l.unit)} × {money(l.unit_price)}
           {l.discount > 0 && !l.customer_supplied && <span className="text-success"> − {num(l.discount)} %</span>}
         </p>
+        {l.tier_label && <p className="text-xs text-muted-foreground">{l.tier_label}</p>}
         {l.note && <p className="text-xs text-muted-foreground">{l.note}</p>}
       </div>
       <span className="shrink-0 text-right font-semibold whitespace-nowrap tabular-nums">

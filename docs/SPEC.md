@@ -37,6 +37,8 @@ IČO, DIČ, adresa, telefon, e-mail, bankovní účet/IBAN, logo, vlastní SMTP/
 - `default_vat_rate` — výchozí sazba pro plátce: **12 %** (oprava a údržba bytů a rodinných domů), lze 21 % / 0 % (PDP).
 - `quote_valid_days` (30), `quote_intro` (úvodní text nabídky), `quote_terms` (podmínky — záruka, platba, …).
 - `invoice_due_days` (14), `invoice_text` (poznámka na fakturu).
+- `tier_labels` — názvy 3 cenových tarifů podle velikosti dlažby (§4): výchozí „Malý formát (do 30×30)“, „Standard (do 60×60)“,
+  „Velký formát (nad 60×60)“; prázdný název = výchozí.
 - Číselné řady: nabídky `NA26001`, zakázky `ZA26001`, faktury `26001` (`Counter`, per firma a rok).
 
 ## 3. Zákazníci (`Customer`)
@@ -58,7 +60,17 @@ Položky, ze kterých se skládá nabídka:
 | `discount` | výchozí sleva v % (sleva dodavatele u materiálu, 25 = −25 %) |
 | `measure` | odkud se bere množství ze zaměření (§5.2): `""` ručně, `floor`, `wall`, `area` (podlahy + stěny), `perimeter` (obvod podlah), `length` (délkové prvky) |
 | `waste` | prořez v % přičtený k množství ze zaměření (obklad +10 %) |
+| `tier_prices` | volitelně 3 ceny podle **velikosti dlažby** (tarif 1 malý formát, 2 standard, 3 velký formát; názvy v nastavení §2) — buď žádná, nebo všechny 3 |
+| `quick` | **rychlá volba**: položka se nabízí v editoru řádků jako tlačítko „Doplňkové práce“ (přidání jedním klepnutím na mobilu) |
 | `active`, `position` | vyřazené položky se v nabídce nenabízejí |
+
+**Velikost dlažby.** Cena pokládky závisí na formátu (mozaika a malé formáty víc spár, velký formát těžší manipulace a rovinnost).
+Položka s `tier_prices` dostane v řádku volbu tarifu (§5.3); `price` je cena bez zvolené velikosti (výchozí ceník: standard).
+Výchozí ceník: montáž dlažby i obkladu 750 / 650 / 850 Kč/m².
+
+**Doplňkové práce** (výchozí ceník, rychlá volba): vykružování otvorů (ks, ze zaměření kusy), kamenický roh — broušení hrany 45° (bm, ručně),
+nika — obklad výklenku (ks, ručně), hydroizolační stěrka (m², ručně), betonování / vyrovnání podlahy (m², podlahy), samostatné spárování
+(m², podlahy + stěny). Výchozí ceník dostává jen nová firma (a demo); stávající firmy si položky doplní v ceníku.
 
 ## 5. Nabídka (`Quote`)
 
@@ -91,12 +103,18 @@ množství `measure` zruší.
 
 ### 5.3 Řádky
 
-`{section, catalog_item_id?, name, unit, quantity, unit_price, discount, customer_supplied, measure, rooms, waste, note}`
+`{section, catalog_item_id?, name, unit, quantity, unit_price, discount, customer_supplied, measure, rooms, waste, tier, note}`
 
 - `section`: `work` / `material` / `other` — tisk a součty po sekcích (Práce, Materiál, Ostatní).
 - Částka řádku = `quantity × unit_price × (1 − discount/100)` **zaokrouhlená na celé Kč** (jako na papíře: 11,52 bm × 60 = 691 Kč),
   `customer_supplied` → 0 Kč (řádek se tiskne s „dodá zákazník“, aby bylo jasné, že s ním počítáme).
 - Množství na 2 desetinná místa, peníze v haléřích (`int64`), jednotkové ceny mohou mít haléře.
+- `tier`: velikost dlažby 1–3 (0 = bez rozlišení). U položky ceníku s `tier_prices` se jednotková cena bere z tarifu
+  (server doplní, když `unit_price` chybí; editor ji přepíše při volbě velikosti), jinak je tarif jen popisek.
+  Řádek si ukládá název tarifu v době uložení (`tier_label`) a tiskne ho: v nabídce (PDF, `/n/{token}`) šedým druhým řádkem,
+  na faktuře za názvem („Montáž dlažby — Velký formát (nad 60×60)“). Velikost je u řádku, ne u nabídky — podlaha a stěny
+  mívají různý formát.
+- Editor nabízí nad sekcemi **Doplňkové práce** (položky ceníku s `quick`) — klepnutí přidá řádek z ceníku.
 - Součty: práce, materiál, ostatní, základ, DPH (plátce), **celkem**. Volitelná sleva na celou nabídku v %.
 
 ### 5.4 Odeslání a přijetí
@@ -182,3 +200,8 @@ Tailwind 4 + shadcn (base-ui), PWA (instalace na telefon), openapi-typescript. D
 6. Odpočet zálohy u plátce: zálohová faktura je výzva k platbě (bez DPH); konečná faktura odečte základ zálohy přepočtený
    sazbou zakázky. Pokud bude potřeba daňový doklad k přijaté platbě, doplnit.
 7. Nabídka pro zákazníka-plátce ve stavebnictví (PDP, sazba 0 %) — sazba se volí ručně, text „daň odvede zákazník“ zatím chybí.
+8. Tarify velikosti dlažby: stačí 3 pevné tarify s přejmenovatelnými názvy, nebo chce obkladač počet a hranice (30×30, 60×60, 120×60…)
+   volit sám? Platí tarif i pro obklad, nebo jen pro dlažbu? Výchozí ceny 750 / 650 / 850 Kč/m² jsou odhad — upřesnit.
+   Výchozí velikost pro celou nabídku zatím není (každý řádek zvlášť); chtěl by ji?
+9. Doplňkové práce: jednotky a ceny (kamenický roh bm, nika ks, betonování m²) jsou odhad; počítá se nika kusem, nebo m² obkladu
+   + kamenické rohy? Betonování podle m² podlahy, nebo podle tloušťky (m³)?

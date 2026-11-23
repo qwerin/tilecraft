@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"gorm.io/gorm"
@@ -37,14 +38,15 @@ type Account struct {
 
 // Settings are the firm's settings (SPEC §2).
 type Settings struct {
-	VatPayer       bool   `json:"vat_payer" doc:"The firm is a VAT payer (prices are without VAT, documents show VAT)"`
-	DefaultVatRate int    `json:"default_vat_rate" minimum:"0" maximum:"21" doc:"VAT rate of new quotes for a VAT payer (12 = repairs of housing, 21, 0 = reverse charge)"`
-	QuoteValidDays int    `json:"quote_valid_days" minimum:"1" maximum:"365"`
-	QuoteIntro     string `json:"quote_intro" maxLength:"5000" doc:"Introduction text of new quotes"`
-	QuoteTerms     string `json:"quote_terms" maxLength:"20000" doc:"Terms printed on new quotes (warranty, payment, …)"`
-	InvoiceDueDays int    `json:"invoice_due_days" minimum:"0" maximum:"365"`
-	InvoiceDigits  int    `json:"invoice_digits" minimum:"0" maximum:"6" doc:"Digits of the sequence in the invoice number (year + sequence); 0 = 3"`
-	InvoiceText    string `json:"invoice_text" maxLength:"2000" doc:"Note of every new invoice"`
+	VatPayer       bool     `json:"vat_payer" doc:"The firm is a VAT payer (prices are without VAT, documents show VAT)"`
+	DefaultVatRate int      `json:"default_vat_rate" minimum:"0" maximum:"21" doc:"VAT rate of new quotes for a VAT payer (12 = repairs of housing, 21, 0 = reverse charge)"`
+	QuoteValidDays int      `json:"quote_valid_days" minimum:"1" maximum:"365"`
+	QuoteIntro     string   `json:"quote_intro" maxLength:"5000" doc:"Introduction text of new quotes"`
+	QuoteTerms     string   `json:"quote_terms" maxLength:"20000" doc:"Terms printed on new quotes (warranty, payment, …)"`
+	InvoiceDueDays int      `json:"invoice_due_days" minimum:"0" maximum:"365"`
+	InvoiceDigits  int      `json:"invoice_digits" minimum:"0" maximum:"6" doc:"Digits of the sequence in the invoice number (year + sequence); 0 = 3"`
+	InvoiceText    string   `json:"invoice_text" maxLength:"2000" doc:"Note of every new invoice"`
+	TierLabels     []string `json:"tier_labels,omitempty" maxItems:"3" doc:"Labels of the 3 tile-size price tiers (small, standard, large format); \"\" = the default label, omitted = unchanged"`
 }
 
 // AccountPatch changes company data and/or settings (nil = unchanged).
@@ -65,9 +67,20 @@ type AccountPatch struct {
 }
 
 func toSettings(a *model.AccountSettings) Settings {
+	tl := a.TierLabels()
 	return Settings{VatPayer: a.VatPayer, DefaultVatRate: a.DefaultVatRate, QuoteValidDays: a.QuoteValidDays,
 		QuoteIntro: a.QuoteIntro, QuoteTerms: a.QuoteTerms, InvoiceDueDays: a.InvoiceDueDays, InvoiceDigits: a.InvoiceDigits,
-		InvoiceText: a.InvoiceText}
+		InvoiceText: a.InvoiceText, TierLabels: tl[:]}
+}
+
+// tierLabelsOf stores the tier labels; a default label is stored as "" (follows the default).
+func tierLabelsOf(labels []string) (out [3]string) {
+	for i := range min(len(labels), len(out)) {
+		if l := strings.TrimSpace(labels[i]); l != model.DefaultTierLabels[i] {
+			out[i] = l
+		}
+	}
+	return out
 }
 
 func toAccount(ctx context.Context, a *model.Account) Account {
@@ -177,9 +190,15 @@ func (s *server) patchAccount(ctx context.Context, in *struct{ Body AccountPatch
 	apply(&a.Swift, b.Swift)
 	apply(&a.Web, b.Web)
 	if st := b.Settings; st != nil {
+		t1, t2, t3 := a.Tier1Label, a.Tier2Label, a.Tier3Label
 		a.AccountSettings = model.AccountSettings{VatPayer: st.VatPayer, DefaultVatRate: st.DefaultVatRate,
 			QuoteValidDays: max(st.QuoteValidDays, 1), QuoteIntro: st.QuoteIntro, QuoteTerms: st.QuoteTerms,
 			InvoiceDueDays: st.InvoiceDueDays, InvoiceDigits: invoiceDigits(st.InvoiceDigits), InvoiceText: st.InvoiceText}
+		a.Tier1Label, a.Tier2Label, a.Tier3Label = t1, t2, t3
+		if st.TierLabels != nil {
+			tl := tierLabelsOf(st.TierLabels)
+			a.Tier1Label, a.Tier2Label, a.Tier3Label = tl[0], tl[1], tl[2]
+		}
 	}
 	// Select("*") so false/zero settings are written too
 	if err := s.db.WithContext(ctx).Model(a).Select("*").Omit("id", "slug", "created_at").Updates(a).Error; err != nil {

@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import type { CatalogItem } from '@/api/catalog'
-import { computeTotals, emptyLine, insertLines, lineFromCatalog, lineToInput, syncLinesWithRooms, usualLines, type Room } from './model'
+import {
+  computeTotals,
+  emptyLine,
+  insertLines,
+  lineFromCatalog,
+  lineToInput,
+  quickItems,
+  syncLinesWithRooms,
+  tierLabels,
+  tierPrice,
+  usualLines,
+  withTier,
+  type Room,
+} from './model'
 
 const rooms: Room[] = [
   {
@@ -55,5 +68,22 @@ describe('doc-editor model', () => {
     expect(t.work).toBe(403000) // 6,2 × 650
     expect(t.material).toBe(254100)
     expect(lineToInput({ ...lines[1], quantity: 1.006 }).quantity).toBe(1.01)
+  })
+
+  it('tile-size tiers pick the price like the server', () => {
+    const tiled = { ...item(7, 'work', 'floor'), tier_prices: [75000, 65000, 85000] }
+    expect([0, 1, 2, 3, 4].map((t) => tierPrice(tiled, t))).toEqual([65000, 75000, 65000, 85000, 65000])
+    expect(tierPrice(item(8, 'work', 'floor'), 3)).toBe(65000)
+    const l = lineFromCatalog(tiled, rooms)
+    const big = withTier(l, 3, [tiled])
+    expect(big.unit_price).toBe(85000)
+    expect(lineToInput(big).tier).toBe(3)
+    // 4.6 m² × 850 Kč = 3 910 Kč
+    expect(computeTotals([big], rooms, 0, 0).work).toBe(391000)
+    // a line without tier prices keeps its price, the tier is only a label
+    const custom = withTier({ ...emptyLine('work'), unit_price: 50000 }, 1, [tiled])
+    expect(custom.unit_price).toBe(50000)
+    expect(tierLabels(['Mozaika', '', null as unknown as string])).toEqual(['Mozaika', 'Standard (do 60×60)', 'Velký formát (nad 60×60)'])
+    expect(quickItems([tiled, { ...item(9, 'work', ''), quick: true }, { ...item(10, 'work', ''), quick: true, active: false }]).map((c) => c.id)).toEqual([9])
   })
 })

@@ -3,6 +3,7 @@ import {
   ArrowUpIcon,
   CheckIcon,
   CopyIcon,
+  GridIcon,
   PackageCheckIcon,
   PlusIcon,
   RulerIcon,
@@ -11,6 +12,7 @@ import {
   SparklesIcon,
   TagsIcon,
   Trash2Icon,
+  WrenchIcon,
 } from 'lucide-react'
 import { useMemo, useState, type ComponentProps, type ReactNode } from 'react'
 import type { CatalogItem } from '@/api/catalog'
@@ -18,18 +20,24 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { useFirm } from '@/hooks/use-firm'
 import { fromMinor, money, num, toMinor, unitLabel, units } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import {
   computeLines,
   emptyLine,
+  hasTiers,
   insertLines,
   lineFromCatalog,
   measureLabels,
   measureUnits,
+  quickItems,
   sectionLabels,
   sections,
+  tierLabels,
+  TIERS,
   usualLines,
+  withTier,
   type ComputedLine,
   type DocLine,
   type Measure,
@@ -61,6 +69,9 @@ export function LinesEditor({ value, onChange, rooms, catalog, readOnly, hidePri
   const [open, setOpen] = useState<number | null>(null)
   const usual = useMemo(() => (readOnly ? [] : usualLines(catalog, rooms, value)), [readOnly, catalog, rooms, value])
   const roomNames = rooms.map((r) => r.name.trim()).filter(Boolean)
+  const labels = tierLabels(useFirm().account.settings.tier_labels)
+  const tiered = useMemo(() => new Set(catalog.filter(hasTiers).map((c) => c.id)), [catalog])
+  const quick = useMemo(() => (readOnly ? [] : quickItems(catalog)), [readOnly, catalog])
 
   const set = (i: number, l: DocLine) => onChange(value.map((x, j) => (j === i ? l : x)))
   const remove = (i: number) => {
@@ -90,6 +101,31 @@ export function LinesEditor({ value, onChange, rooms, catalog, readOnly, hidePri
           <Button type="button" size="sm" className="max-sm:w-full" onClick={() => addLines(usual)}>
             <SparklesIcon /> Přidat obvyklé položky
           </Button>
+        </div>
+      )}
+
+      {quick.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <WrenchIcon className="size-3.5" /> Doplňkové práce — klepnutím přidáte řádek
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {quick.map((c) => {
+              const n = value.filter((l) => l.catalog_item_id === c.id).length
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => addLines([lineFromCatalog(c, rooms)])}
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed px-3 py-1.5 text-xs transition-colors hover:bg-muted active:bg-muted md:py-1"
+                >
+                  {n > 0 ? <CheckIcon className="size-3.5 text-success" /> : <PlusIcon className="size-3.5 text-muted-foreground" />}
+                  {c.name}
+                  {n > 1 && <span className="text-muted-foreground">{n}×</span>}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -126,7 +162,7 @@ export function LinesEditor({ value, onChange, rooms, catalog, readOnly, hidePri
             <div className="flex flex-col divide-y">
               {idx.map((i) =>
                 readOnly ? (
-                  <LineView key={i} line={computed[i]} hidePrices={hidePrices} />
+                  <LineView key={i} line={computed[i]} hidePrices={hidePrices} tierLabel={labels[computed[i].tier - 1]} />
                 ) : (
                   <LineRow
                     key={i}
@@ -135,6 +171,9 @@ export function LinesEditor({ value, onChange, rooms, catalog, readOnly, hidePri
                     rooms={rooms}
                     roomNames={roomNames}
                     hidePrices={hidePrices}
+                    labels={labels}
+                    tiered={value[i].catalog_item_id != null && tiered.has(value[i].catalog_item_id!)}
+                    onTier={(t) => set(i, withTier(value[i], t, catalog))}
                     open={open === i}
                     onToggle={() => setOpen(open === i ? null : i)}
                     onChange={(l) => set(i, l)}
@@ -207,6 +246,9 @@ function LineRow({
   rooms,
   roomNames,
   hidePrices,
+  labels,
+  tiered,
+  onTier,
   open,
   onToggle,
   onChange,
@@ -219,6 +261,10 @@ function LineRow({
   rooms: Room[]
   roomNames: string[]
   hidePrices?: boolean
+  labels: string[]
+  /** Položka ceníku má ceny podle velikosti dlažby. */
+  tiered: boolean
+  onTier: (tier: number) => void
   open: boolean
   onToggle: () => void
   onChange: (l: DocLine) => void
@@ -250,6 +296,16 @@ function LineRow({
               {measured && l.note && ' · '}
               {l.note}
             </p>
+          )}
+          {(tiered || l.tier > 0) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5" role="group" aria-label="Velikost dlažby">
+              <GridIcon className="size-3.5 text-muted-foreground" aria-hidden />
+              {TIERS.map((t) => (
+                <Chip key={t} active={l.tier === t} onClick={() => onTier(l.tier === t ? 0 : t)}>
+                  {labels[t - 1]}
+                </Chip>
+              ))}
+            </div>
           )}
         </div>
         <div className="col-span-2 flex justify-end @xl:col-span-1 @5xl:order-last">
@@ -334,6 +390,17 @@ function LineRow({
                 ))}
               </Select>
             </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">Velikost dlažby</span>
+              <Select value={l.tier} onChange={(e) => onTier(Number(e.target.value))}>
+                <option value={0}>Bez rozlišení{tiered ? ' (základní cena)' : ''}</option>
+                {TIERS.map((t) => (
+                  <option key={t} value={t}>
+                    {labels[t - 1]}
+                  </option>
+                ))}
+              </Select>
+            </label>
             {measured && (
               <label className="flex w-28 flex-col gap-1">
                 <span className="text-xs font-medium text-muted-foreground">Prořez</span>
@@ -392,7 +459,7 @@ function LineRow({
 }
 
 /** Řádek jen pro čtení. */
-function LineView({ line: l, hidePrices }: { line: ComputedLine; hidePrices?: boolean }) {
+function LineView({ line: l, hidePrices, tierLabel }: { line: ComputedLine; hidePrices?: boolean; tierLabel?: string }) {
   return (
     <div className="flex items-start justify-between gap-3 py-2 text-sm">
       <div className="min-w-0">
@@ -401,6 +468,7 @@ function LineView({ line: l, hidePrices }: { line: ComputedLine; hidePrices?: bo
           {num(l.quantity)} {unitLabel(l.unit)}
           {!hidePrices && <> × {money(l.unit_price)}</>}
           {!hidePrices && l.discount > 0 && <> − {num(l.discount)} %</>}
+          {tierLabel && <> · {tierLabel}</>}
           {l.measure && <> · {measureCaption(l)}</>}
           {l.note && <> · {l.note}</>}
         </p>
@@ -521,7 +589,7 @@ function CatalogPicker({
                   <span className="block font-medium">{c.name}</span>
                   <span className="block text-xs text-muted-foreground">
                     {kind === 'all' && `${sectionLabels[c.kind]} · `}
-                    {money(c.price)} / {unitLabel(c.unit)}
+                    {hasTiers(c) ? c.tier_prices!.map((p) => money(p)).join(' / ') : money(c.price)} / {unitLabel(c.unit)}
                     {c.discount ? ` · sleva ${num(c.discount)} %` : ''}
                     {c.measure ? ` · ze zaměření: ${measureLabels[c.measure as Exclude<Measure, ''>]}` : ''}
                     {c.waste ? ` + ${num(c.waste)} %` : ''}

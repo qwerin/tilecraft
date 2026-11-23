@@ -35,6 +35,8 @@ export interface DocLine {
   measure: Measure
   rooms: string[] // jména místností pro measure; prázdné = všechny
   waste: number // %
+  /** Velikost dlažby (tarif ceny) 1–3, 0 = bez rozlišení. */
+  tier: number
   note: string
 }
 
@@ -73,6 +75,7 @@ export function lineFromApi(l: ApiLine): DocLine {
     measure: (l.measure || '') as Measure,
     rooms: l.rooms ?? [],
     waste: l.waste,
+    tier: l.tier ?? 0,
     note: l.note,
   }
 }
@@ -91,6 +94,7 @@ export function lineToInput(l: DocLine): ApiLineInput {
     measure: l.measure,
     rooms: l.measure ? l.rooms.map((n) => n.trim()) : [],
     waste: clampPct(l.waste),
+    tier: l.tier || 0,
     note: l.note,
   }
 }
@@ -110,6 +114,7 @@ export function lineFromCatalog(c: CatalogItem, rooms: Room[] = []): DocLine {
     measure: (c.measure ?? '') as Measure,
     rooms: [],
     waste: c.waste ?? 0,
+    tier: 0,
     note: '',
   }
   if (l.measure) l.quantity = measuredQuantity(rooms, l.measure, [], l.waste)
@@ -129,8 +134,37 @@ export function emptyLine(section: Section): DocLine {
     measure: '',
     rooms: [],
     waste: 0,
+    tier: 0,
     note: '',
   }
+}
+
+/** Výchozí názvy tarifů podle velikosti dlažby (firma je přejmenuje v nastavení; stejně jako server). */
+export const DEFAULT_TIER_LABELS = ['Malý formát (do 30×30)', 'Standard (do 60×60)', 'Velký formát (nad 60×60)'] as const
+export const TIERS = [1, 2, 3] as const
+
+/** Názvy tarifů firmy (prázdný = výchozí). */
+export function tierLabels(labels: readonly string[] | null | undefined): string[] {
+  return DEFAULT_TIER_LABELS.map((d, i) => labels?.[i]?.trim() || d)
+}
+
+/** Položka ceníku má ceny podle velikosti dlažby. */
+export const hasTiers = (c: Pick<CatalogItem, 'tier_prices'> | undefined): boolean => (c?.tier_prices?.length ?? 0) === TIERS.length
+
+/** Jednotková cena položky pro tarif 1–3 (0 nebo položka bez tarifů = základní cena) — jako server (`CatalogItem.PriceFor`). */
+export function tierPrice(c: Pick<CatalogItem, 'price' | 'tier_prices'>, tier: number): number {
+  return tier >= 1 && tier <= TIERS.length && hasTiers(c) ? c.tier_prices![tier - 1] : c.price
+}
+
+/** Změna velikosti dlažby: u položky s tarify se přepíše jednotková cena cenou tarifu. */
+export function withTier(l: DocLine, tier: number, catalog: CatalogItem[]): DocLine {
+  const c = catalog.find((x) => x.id === l.catalog_item_id)
+  return { ...l, tier, unit_price: c && hasTiers(c) ? tierPrice(c, tier) : l.unit_price }
+}
+
+/** Doplňkové práce (položky ceníku s rychlou volbou) k přidání jedním klepnutím. */
+export function quickItems(catalog: CatalogItem[]): CatalogItem[] {
+  return catalog.filter((c) => c.active && c.quick)
 }
 
 /** Množství řádku: ze zaměření (measure), jinak ruční. */

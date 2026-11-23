@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { catalogInputOf, catalogMutations, useCatalog, type CatalogInput, type CatalogItem } from '@/api/catalog'
 import { useFirmMutation } from '@/api/queries'
 import { DataTable, EmptyState, FormRow, PageHeader, StatusBadge } from '@/components/common'
-import { measureLabels, NumberInput, Select, sectionLabels, sections, type Measure, type Section } from '@/components/doc-editor'
+import { hasTiers, measureLabels, NumberInput, Select, sectionLabels, sections, tierLabels, TIERS, type Measure, type Section } from '@/components/doc-editor'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -93,8 +93,8 @@ function CatalogPage() {
                     <button key={c.id} type="button" onClick={() => setEditing(c)} className={cn('rounded-xl border bg-card p-3 text-left text-sm shadow-xs active:bg-muted', !c.active && 'opacity-60')}>
                       <div className="flex items-start justify-between gap-2">
                         <span className="font-medium">{c.name}</span>
-                        <span className="shrink-0 font-semibold whitespace-nowrap tabular-nums">
-                          {money(c.price)} / {unitLabel(c.unit)}
+                        <span className="shrink-0 text-right font-semibold whitespace-nowrap tabular-nums">
+                          {hasTiers(c) ? c.tier_prices!.map((p) => fromMinor(p)).join(' / ') + ' Kč' : money(c.price)} / {unitLabel(c.unit)}
                         </span>
                       </div>
                       <Meta c={c} />
@@ -125,6 +125,11 @@ function CatalogPage() {
                         <td>
                           <span className="font-medium">{c.name}</span>
                           {c.code && <span className="ml-2 font-mono text-xs text-muted-foreground">{c.code}</span>}
+                          {c.quick && (
+                            <StatusBadge className="ml-2" tone="outline">
+                              rychlá volba
+                            </StatusBadge>
+                          )}
                           {!c.active && (
                             <StatusBadge className="ml-2" tone="outline">
                               vyřazeno
@@ -132,7 +137,17 @@ function CatalogPage() {
                           )}
                         </td>
                         <td>{unitLabel(c.unit)}</td>
-                        <td className="text-right font-semibold tabular-nums">{money(c.price)}</td>
+                        <td className="text-right font-semibold tabular-nums">
+                          {hasTiers(c) ? (
+                            <span title="Ceny podle velikosti dlažby" className="flex flex-col text-xs leading-tight">
+                              {c.tier_prices!.map((p, i) => (
+                                <span key={i}>{money(p)}</span>
+                              ))}
+                            </span>
+                          ) : (
+                            money(c.price)
+                          )}
+                        </td>
                         <td className="text-right text-muted-foreground tabular-nums">{c.purchase_price ? money(c.purchase_price) : ''}</td>
                         <td className="text-right tabular-nums">{c.discount ? `${num(c.discount)} %` : ''}</td>
                         <td className="text-xs">
@@ -164,6 +179,8 @@ function CatalogPage() {
 function Meta({ c }: { c: CatalogItem }) {
   const parts = [
     c.code,
+    hasTiers(c) ? 'ceny podle velikosti dlažby' : '',
+    c.quick ? 'rychlá volba' : '',
     c.discount ? `sleva ${num(c.discount)} %` : '',
     c.measure ? `ze zaměření: ${measureText(c.measure)}${c.waste ? ` + ${num(c.waste)} %` : ''}` : '',
     !c.active ? 'vyřazeno' : '',
@@ -172,8 +189,9 @@ function Meta({ c }: { c: CatalogItem }) {
 }
 
 function CatalogDialog({ slug, item, kind, onClose }: { slug: string; item?: CatalogItem; kind: Section; onClose: () => void }) {
+  const labels = tierLabels(useFirm().account.settings.tier_labels)
   const [v, setV] = useState<CatalogInput>(() =>
-    item ? catalogInputOf(item) : { kind, name: '', code: '', unit: kind === 'work' ? 'm2' : kind === 'material' ? 'ks' : 'kpl', price: 0, purchase_price: 0, discount: 0, measure: '', waste: 0, note: '', active: true },
+    item ? catalogInputOf(item) : { kind, name: '', code: '', unit: kind === 'work' ? 'm2' : kind === 'material' ? 'ks' : 'kpl', price: 0, purchase_price: 0, discount: 0, measure: '', waste: 0, tier_prices: [], quick: false, note: '', active: true },
   )
   const create = useFirmMutation(slug, catalogMutations.create(slug), [['catalog']])
   const update = useFirmMutation(slug, catalogMutations.update(slug), [['catalog']])
@@ -229,6 +247,30 @@ function CatalogDialog({ slug, item, kind, onClose }: { slug: string; item?: Cat
             <FormRow label="Prodejní cena" htmlFor="cat-price" className="col-span-4">
               <NumberInput id="cat-price" value={v.price} onChange={(x) => set('price', x ?? 0)} parse={toMinor} format={(n) => fromMinor(n ?? 0)} suffix={`Kč/${unitLabel(v.unit)}`} inputClassName="pr-14" />
             </FormRow>
+            <label className="col-span-6 flex items-center gap-2 text-sm">
+              <Switch checked={hasTiers(v)} onCheckedChange={(x) => set('tier_prices', x ? TIERS.map(() => v.price) : [])} /> Cena podle velikosti
+              dlažby (3 tarify)
+            </label>
+            {hasTiers(v) && (
+              <div className="col-span-6 grid grid-cols-3 gap-2 max-sm:grid-cols-1">
+                {TIERS.map((t) => (
+                  <FormRow key={t} label={labels[t - 1]} htmlFor={`cat-tier-${t}`}>
+                    <NumberInput
+                      id={`cat-tier-${t}`}
+                      value={v.tier_prices![t - 1]}
+                      onChange={(x) => set('tier_prices', v.tier_prices!.map((p, i) => (i === t - 1 ? (x ?? 0) : p)))}
+                      parse={toMinor}
+                      format={(n) => fromMinor(n ?? 0)}
+                      suffix="Kč"
+                    />
+                  </FormRow>
+                ))}
+                <p className="col-span-full text-xs text-muted-foreground">
+                  V nabídce zvolíte u řádku velikost dlažby a cena se doplní podle tarifu. Prodejní cena výše platí, když velikost nezvolíte. Názvy
+                  tarifů změníte v Nastavení → Firma.
+                </p>
+              </div>
+            )}
             <FormRow label="Nákupní cena" htmlFor="cat-purchase" className="col-span-3" hint={margin != null ? `Marže ${margin} %` : 'Pro přehled marže, zákazník ji nevidí.'}>
               <NumberInput id="cat-purchase" value={v.purchase_price || null} onChange={(x) => set('purchase_price', x ?? 0)} parse={toMinor} format={(n) => (n ? fromMinor(n) : '')} suffix="Kč" />
             </FormRow>
@@ -251,6 +293,9 @@ function CatalogDialog({ slug, item, kind, onClose }: { slug: string; item?: Cat
             <FormRow label="Poznámka" htmlFor="cat-note" className="col-span-6">
               <Textarea id="cat-note" value={v.note ?? ''} onChange={(e) => set('note', e.target.value)} rows={2} />
             </FormRow>
+            <label className="col-span-6 flex items-center gap-2 text-sm">
+              <Switch checked={!!v.quick} onCheckedChange={(x) => set('quick', x)} /> Rychlá volba (tlačítko v „Doplňkových pracích“ nabídky)
+            </label>
             <label className="col-span-6 flex items-center gap-2 text-sm">
               <Switch checked={v.active} onCheckedChange={(x) => set('active', x)} /> Aktivní (nabízí se v nabídkách)
             </label>

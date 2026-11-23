@@ -87,6 +87,7 @@ export function lineToInput(l: JobLine): LineInput {
     measure: l.measure as LineInput['measure'],
     rooms: l.rooms,
     waste: l.waste,
+    tier: l.tier,
     note: l.note,
   }
 }

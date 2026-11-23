@@ -39,6 +39,32 @@ type AccountSettings struct {
 	InvoiceDueDays int    `gorm:"not null;default:14"`
 	InvoiceDigits  int    `gorm:"not null;default:3"` // digits of the sequence in the invoice number (YY + sequence): 3 = 26001
 	InvoiceText    string `gorm:"not null;default:''"`
+	// labels of the tile-size price tiers (SPEC §4); "" = DefaultTierLabels
+	Tier1Label string `gorm:"not null;default:''"`
+	Tier2Label string `gorm:"not null;default:''"`
+	Tier3Label string `gorm:"not null;default:''"`
+}
+
+// DefaultTierLabels are the labels of the tile-size tiers a firm has not renamed.
+var DefaultTierLabels = [3]string{"Malý formát (do 30×30)", "Standard (do 60×60)", "Velký formát (nad 60×60)"}
+
+// TierLabels are the firm's labels of the tile-size tiers 1–3.
+func (a *AccountSettings) TierLabels() [3]string {
+	out := DefaultTierLabels
+	for i, l := range []string{a.Tier1Label, a.Tier2Label, a.Tier3Label} {
+		if l != "" {
+			out[i] = l
+		}
+	}
+	return out
+}
+
+// TierLabel is the label of a tier 1–3 ("" for 0).
+func (a *AccountSettings) TierLabel(tier int) string {
+	if tier < 1 || tier > 3 {
+		return ""
+	}
+	return a.TierLabels()[tier-1]
 }
 
 // Membership puts a user into a firm with a role.

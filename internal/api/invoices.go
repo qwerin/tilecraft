@@ -502,7 +502,7 @@ func jobInvoiceLines(j *model.Job, summary bool) []InvoiceLineInput {
 			if l.CustomerSupplied || l.Amount() == 0 {
 				continue
 			}
-			out = append(out, InvoiceLineInput{Text: l.Name, Unit: l.Unit, Quantity: l.Quantity, UnitPrice: l.UnitPrice,
+			out = append(out, InvoiceLineInput{Text: lineText(&l), Unit: l.Unit, Quantity: l.Quantity, UnitPrice: l.UnitPrice,
 				Discount: l.Discount, VatRate: j.VatRate})
 		}
 	}
