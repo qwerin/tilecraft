@@ -51,6 +51,7 @@ type PublicQuote struct {
 	DecidedAt    *time.Time    `json:"decided_at"`
 	DecidedBy    string        `json:"decided_by"`
 	Plans        []PublicFile  `json:"plans" nullable:"false" doc:"Laying plans the firm shows to the customer"`
+	Revises      *RevisedFrom  `json:"revises,omitempty" doc:"A revised quote: the original quote it updates (extra work)"`
 }
 
 // PublicFile is a file shown to the customer (a laying plan), served through the quote's token.
@@ -59,6 +60,12 @@ type PublicFile struct {
 	Filename    string `json:"filename"`
 	ContentType string `json:"content_type"`
 	URL         string `json:"url"`
+}
+
+// RevisedFrom is the original quote a revised quote updates.
+type RevisedFrom struct {
+	Number string `json:"number" doc:"\"\" when the job had no quote"`
+	Total  int64  `json:"total" doc:"haléře with VAT of the original quote"`
 }
 
 // PublicDecision is the customer's answer.
@@ -96,6 +103,7 @@ func (s *server) toPublicQuote(q *model.Quote, acc *model.Account) PublicQuote {
 	for i := range q.Lines {
 		lines[i] = toLine(0, &q.Lines[i].LineData)
 		lines[i].CatalogItemID = nil
+		lines[i].Extra = lines[i].Extra && q.JobID != nil
 	}
 	logo := ""
 	if acc.LogoKey != "" {
@@ -112,6 +120,9 @@ func (s *server) toPublicQuote(q *model.Quote, acc *model.Account) PublicQuote {
 	if q.ShowMeasure && q.Rooms != nil {
 		m := measurements(q.Rooms)
 		out.Rooms, out.Measurements = q.Rooms, &m
+	}
+	if r := s.revisionOf(s.db, q); r != nil {
+		out.Revises = &RevisedFrom{Number: r.QuoteNumber, Total: r.QuoteTotal}
 	}
 	return out
 }
@@ -160,6 +171,7 @@ func (s *server) decidePublicQuote(ctx context.Context, in *struct {
 		return nil, conflict(CodeQuoteLocked, "the quote can no longer be decided")
 	}
 	q.State, q.DecidedAt, q.DecidedBy, q.Reason = in.Body.State, &now, name, in.Body.Reason
+	s.noteRevisionDecision(s.db.WithContext(ctx), q, q.CreatedByID) // diary notes need a user: the author of the quote
 	s.notifyDecision(ctx, acc, q)
 	return s.publicQuoteOut(ctx, q, acc)
 }

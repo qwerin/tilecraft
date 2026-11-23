@@ -38,6 +38,8 @@ export interface DocLine {
   /** Velikost dlažby (tarif ceny) 1–3, 0 = bez rozlišení. */
   tier: number
   note: string
+  /** Práce / náklad navíc (přidané během zakázky, SPEC §6.1). */
+  extra?: boolean
 }
 
 /** Řádek s dopočítaným množstvím a částkou (haléře). */
@@ -77,6 +79,7 @@ export function lineFromApi(l: ApiLine): DocLine {
     waste: l.waste,
     tier: l.tier ?? 0,
     note: l.note,
+    extra: l.extra || undefined,
   }
 }
 
@@ -96,6 +99,7 @@ export function lineToInput(l: DocLine): ApiLineInput {
     waste: clampPct(l.waste),
     tier: l.tier || 0,
     note: l.note,
+    extra: l.extra || undefined,
   }
 }
 

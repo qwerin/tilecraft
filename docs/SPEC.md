@@ -128,6 +128,10 @@ množství `measure` zruší.
   PDF plánu jen jménem s odkazem na online nabídku). Soubor se servíruje přes token: `/api/public/quotes/{token}/files/{id}`
   vrátí jen sdílený plán této (odeslané) nabídky, cokoli jiného (fotky, nesdílený plán, cizí nabídka, rozpracovaná) = 404.
 - Tisk / PDF: `/print/{slug}/quotes/{id}` (A4, logo, zaměření volitelně, sekce, podmínky, sdílený kladečský plán).
+- **Upravená nabídka** (§6.2) se posílá a přijímá stejně; stránka i PDF ji nadepíšou „Upravená cenová nabídka“,
+  uvedou „Aktualizace nabídky NA26001 (částka)“ a řádky navíc označí „navíc“. Přijetí upravené nabídky **nevytváří
+  zakázku** (zakázku z ní nejde vytvořit, `revision_quote`), jen zapíše souhlas zákazníka do deníku zakázky
+  („Zákazník Jan Novák přijal upravenou nabídku NA26005 (12 345 Kč).“) a firmě přijde e-mail jako u každé nabídky.
 
 ### 5.5 Kopie
 
@@ -138,6 +142,16 @@ množství `measure` zruší.
 Vzniká **z přijaté nabídky** (zkopíruje zákazníka, adresu, zaměření a řádky; fotky a plán nabídky **připojí** — stejné soubory,
 nekopírují se) nebo ručně.
 Stavy: `planned` (domluvená) → `in_progress` (realizace) → `done` (hotovo) → `invoiced`; kdykoli `cancelled`.
+
+**Etapy** (tak, jak je popisuje obkladač; nahoře na detailu zakázky jako stepper s kontrolním seznamem a tlačítky dalšího kroku,
+odvozené ze stavu, nic dalšího se neukládá):
+
+| etapa | stav | kontrolní seznam |
+|---|---|---|
+| 1. Navedení | `planned` | zaměření, nabídka přijatá (jen kancelář), termín, fotky |
+| 2. Zhotovení | `in_progress` | zahájeno, práce a náklady navíc (kolik, „k nacenění“), deník |
+| 3. Ukončení | `done` | hotovo, cestovné, upravená nabídka odeslaná / přijatá (jen kancelář), fotky hotové zakázky |
+| 4. Faktura | `invoiced` | zálohy, faktura vystavená / zaplacená |
 
 - Termín od–do (kalendář zakázek), adresa stavby, kontakt na místě, poznámka, přiřazení parťáci.
 - **Skutečnost**: řádky zakázky jsou kopie nabídky a upravují se podle reality (víc m², vícepráce).
@@ -169,6 +183,22 @@ Fotky provázejí celou zakázku: navedení (nabídka) → zhotovení → ukonč
 - Smazání zakázky smaže její vlastní soubory, soubory nabídky zůstanou u nabídky. Smazání nabídky (bez zakázky) smaže její soubory.
 - Na stránce zakázky jsou fotky seskupené po kategoriích, nahrání volí kategorii (předvolená podle stavu); na stránce nabídky
   sekce „Fotky a kladečský plán“ (Před / Kladečský plán / Ostatní).
+
+### 6.2 Práce a náklady navíc, cestovné, upravená nabídka
+
+- **Navíc** = řádek zakázky s `extra: true` (práce, materiál nebo jiný náklad, který v nabídce nebyl). Na zakázce je
+  zvlášť ve skupině „Práce a náklady navíc“ (editor položek má dvě skupiny: podle nabídky / navíc), v součtech zakázky
+  a na faktuře je normálně. `extras` v detailu zakázky = počet, nenaceněné, částka bez DPH (parťák 0).
+- Rychlé zapsání `POST /jobs/{id}/extras` (`{section, name, quantity, unit, unit_price?, note}`) může i **parťák**:
+  jeho cena se ignoruje (řádek má cenu 0, do poznámky „zapsal …“, kancelář ho vidí jako „k nacenění“ a nacení v editoru).
+  Parťák řádky navíc jen přidává; mění a maže je kancelář. Vyfakturovanou ani zrušenou zakázku měnit nejde.
+- **Cestovné** `PUT /jobs/{id}/travel` (kancelář): km jedné cesty × počet cest × cena za km (výchozí z položky ceníku
+  „Cestovné“, jinak z dosavadního řádku) nebo paušál (`lump_sum`, 1 kpl); vytvoří nebo přepíše jeden řádek „Cestovné…“
+  v sekci Ostatní (`remove` ho odebere). Nový řádek cestovného u zakázky z nabídky je navíc.
+- **Upravená nabídka** `POST /jobs/{id}/revised-quote` (kancelář) = nová nabídka (`Quote.job_id` = zakázka) se zaměřením
+  a řádky zakázky (příznaky navíc zůstanou), názvem „… – upravená nabídka (vícepráce)“, úvodem „aktualizace nabídky NA…“
+  a podmínkami původní nabídky. Rozpracovanou upravenou nabídku další volání jen aktualizuje podle zakázky. Odesílá se
+  běžně (§5.4); přijetí nevytváří zakázku. Faktura se dál vystavuje ze zakázky (§7).
 
 ## 7. Faktury (`Invoice`)
 
@@ -212,7 +242,8 @@ Nástroje: `list_accounts`, `get_account`, `list_catalog`, `create_catalog_item`
 `update_quote`, `duplicate_quote`, `preview_measurements` (spočítá plochy bez uložení), `list_jobs`, `get_job`,
 `create_job_from_quote`, `update_job`, `add_job_note`, `list_invoices`, `get_invoice`, `list_attachments` (fotky a plány podle
 nabídky/zakázky a kategorie), `get_attachment` (ukáže soubor), `upload_attachment` (nahraje soubor k nabídce nebo zakázce s kategorií;
-zákazníkovi ho ukázat neumí).
+zákazníkovi ho ukázat neumí),
+`add_job_extra`, `set_job_travel`, `create_revised_quote` (jen vytvoří koncept, neodesílá).
 Bez mazání, odesílání e-mailů, změn členů a nastavení.
 
 ## 10. Technika
@@ -240,3 +271,9 @@ Tailwind 4 + shadcn (base-ui), PWA (instalace na telefon), openapi-typescript. D
 10. Kladečský plán ve formátu PDF se do PDF nabídky nevkládá (jen jméno a odkaz na online nabídku) — stačí to, nebo převádět
    na obrázek? Sdílení zákazníkovi je po souborech (`shared`), ne přepínač celé nabídky.
 11. Fotky zakázky (během / hotovo) zákazníkovi zatím nijak neukazujeme (např. předávací protokol, odkaz na hotovou práci).
+12. Práce navíc (§6.2): má zákazník upravenou nabídku vždy odsouhlasit před fakturou, nebo stačí, že ji dostane? (Teď je to
+   jen bod kontrolního seznamu, faktura jde vystavit i bez přijetí.) Mají parťáci zapisovat i hodiny / cenu navíc, nebo jen
+   co a kolik? Může parťák své zápisy navíc opravit nebo smazat (teď jen kancelář)?
+13. Cestovné: počítá obkladač km tam i zpět za každý den na stavbě, nebo paušál za zakázku? (Teď obojí, km × počet cest.)
+   Patří cestovné do první nabídky (pak není „navíc“), nebo se doplňuje až při ukončení?
+14. Přijetí upravené nabídky zapisujeme do deníku zakázky pod autorem upravené nabídky (deník potřebuje uživatele).

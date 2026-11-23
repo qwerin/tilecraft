@@ -287,7 +287,7 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
           <HardHatIcon /> {quote.state === 'accepted' ? 'Vytvořit zakázku' : 'Zákazník přijal → vytvořit zakázku'}
         </DropdownMenuItem>
       )}
-      {quote.state !== 'draft' && !quote.job_id && (
+      {quote.state !== 'draft' && (!quote.job_id || quote.revision) && (
         <DropdownMenuItem onClick={reopen}>
           <RotateCcwIcon /> Vrátit do rozpracovaných
         </DropdownMenuItem>
@@ -297,7 +297,7 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
           <ExternalLinkIcon /> Stránka pro zákazníka
         </DropdownMenuItem>
       )}
-      {!quote.job_id && (
+      {(!quote.job_id || quote.revision) && (
         <>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}>
@@ -358,6 +358,7 @@ export function QuoteEditor({ quote, initialCustomer }: { quote?: Quote; initial
         </div>
       </div>
 
+      {quote?.revision_of && <RevisionBanner quote={quote} />}
       {quote && <StateBanner quote={quote} onCreateJob={onCreateJob} onReopen={reopen} onSend={() => setDialog('send')} onDuplicate={onDuplicate} />}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -583,7 +584,7 @@ function StateBanner({
             <SendIcon /> Poslat znovu
           </Button>
         )}
-        {decided && !q.job_id && (
+        {decided && (!q.job_id || q.revision) && (
           <Button size="sm" variant="outline" onClick={onReopen}>
             <RotateCcwIcon /> Vrátit do rozpracovaných
           </Button>
@@ -594,6 +595,42 @@ function StateBanner({
           </Button>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Upravená nabídka zakázky (práce navíc, SPEC §6.1): k čemu patří a co je navíc. Přijetí zakázku nevytváří. */
+function RevisionBanner({ quote: q }: { quote: Quote }) {
+  const { slug } = useFirm()
+  const r = q.revision_of
+  if (!r) return null
+  const extras = q.lines.filter((l) => l.extra)
+  return (
+    <div className="mb-4 rounded-xl border border-warning/50 bg-warning/10 px-4 py-3 text-sm">
+      <p className="font-medium">
+        Upravená nabídka k zakázce{' '}
+        <Link to="/a/$slug/jobs/$id" params={{ slug, id: String(r.job_id) }} className="text-primary hover:underline">
+          {r.job_number}
+        </Link>
+        {r.quote_number && (
+          <>
+            {' '}
+            — aktualizace nabídky{' '}
+            {r.quote_id ? (
+              <Link to="/a/$slug/quotes/$id" params={{ slug, id: String(r.quote_id) }} className="text-primary hover:underline">
+                {r.quote_number}
+              </Link>
+            ) : (
+              r.quote_number
+            )}{' '}
+            ({money(r.quote_total)} → {money(q.totals.total)})
+          </>
+        )}
+      </p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        {extras.length > 0 ? `Navíc (zákazník je uvidí označené): ${extras.map((l) => l.name).join(', ')}. ` : ''}
+        Pošlete ji zákazníkovi jako běžnou nabídku; když ji přijme, zapíše se to do deníku zakázky (nová zakázka nevznikne).
+      </p>
     </div>
   )
 }

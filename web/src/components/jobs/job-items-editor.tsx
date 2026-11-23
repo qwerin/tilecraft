@@ -13,12 +13,20 @@ import { cn } from '@/lib/utils'
 
 /**
  * Úprava skutečnosti zakázky (vlastník/kancelář): zaměření a řádky podle reality (víc m², vícepráce).
+ * Řádky jsou ve dvou skupinách: původní (z nabídky) a „Práce a náklady navíc“ (`extra`, SPEC §6.1) —
+ * co se přidá do druhé skupiny, je navíc a v upravené nabídce se zákazníkovi zvýrazní.
  * Ukládá se celá zakázka přes PUT /jobs/{id}; ostatní údaje zůstávají z načtené zakázky.
  */
 export function JobItemsEditor({ slug, job, onDone }: { slug: string; job: Job; onDone: () => void }) {
   const catalog = useCatalog(slug).data ?? []
   const [rooms, setRooms] = useState<Room[]>(() => job.rooms as Room[])
-  const [lines, setLines] = useState<DocLine[]>(() => job.lines.map(lineFromApi))
+  const [base, setBase] = useState<DocLine[]>(() => job.lines.filter((l) => !l.extra).map(lineFromApi))
+  const [extras, setExtras] = useState<DocLine[]>(() => job.lines.filter((l) => l.extra).map(lineFromApi))
+  const lines = [...base, ...extras]
+  const setLines = (f: (ls: DocLine[]) => DocLine[]) => {
+    setBase((b) => f(b))
+    setExtras((e) => f(e))
+  }
   const save = useFirmMutation(slug, jobMutations.update(slug, job.id), [['jobs'], ['dashboard']])
   const totals = computeTotals(lines, rooms, job.discount, job.vat_rate)
   const diff = totals.total - job.totals.total
@@ -27,8 +35,24 @@ export function JobItemsEditor({ slug, job, onDone }: { slug: string; job: Job; 
 
   return (
     <div className="flex flex-col gap-4">
-      <Panel id="polozky" title="Upravit položky zakázky">
-        <LinesEditor value={lines} onChange={setLines} rooms={rooms} catalog={catalog.filter((c) => c.active)} />
+      <Panel id="polozky" title={job.quote ? 'Položky podle nabídky' : 'Položky zakázky'}>
+        <LinesEditor value={base} onChange={setBase} rooms={rooms} catalog={catalog.filter((c) => c.active)} />
+      </Panel>
+      <Panel
+        id="navic"
+        title="Práce a náklady navíc"
+        actions={extras.length > 0 && <span className="text-sm font-semibold tabular-nums">{money(computeTotals(extras, rooms, 0, 0).subtotal)}</span>}
+      >
+        <p className="mb-3 text-xs text-muted-foreground">
+          Co se dělalo nebo koupilo navíc proti nabídce (vícepráce, materiál, náklady). V upravené nabídce pro zákazníka jsou označené „navíc“.
+        </p>
+        <LinesEditor
+          value={extras}
+          onChange={(ls) => setExtras(ls.map((l) => (l.extra ? l : { ...l, extra: true })))}
+          rooms={rooms}
+          catalog={catalog.filter((c) => c.active)}
+          hideUsual
+        />
       </Panel>
       <Panel id="zamereni" title="Zaměření">
         <RoomsEditor

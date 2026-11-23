@@ -27,7 +27,8 @@ internal/calc/      čistá aritmetika: plochy, odpočty, obvody, množství ze 
 internal/model/     GORM modely (account.go: firma, členové, e-maily; domain.go: zákazník, ceník, nabídka, zakázka, faktura)
 internal/api/       jeden soubor na zdroj, DTO vedle handlerů:
                     customers, catalog (+ výchozí ceník), lines (řádky + zaměření), quotes, public_quotes (/n/{token}),
-                    jobs (+ fotky, deník), invoices (+ zálohy, odpočet), pdf (PDF + e-mail), dashboard, mcp, seed
+                    jobs (+ fotky, deník), job_extras (práce navíc, cestovné, upravená nabídka),
+                    invoices (+ zálohy, odpočet), pdf (PDF + e-mail), dashboard, mcp, seed
 internal/invoicepdf/ PDF faktury a nabídky (fpdf, Noto, QR Platba)
 internal/auth/      session, API tokeny tc_…, role ForAll/ForManagers
 web/src/routes/     /a/$slug/… aplikace, /n/$token veřejná nabídka pro zákazníka, /print/… tisk

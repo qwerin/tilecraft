@@ -450,6 +450,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/accounts/{slug}/jobs/{id}/extras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post API accounts by slug jobs by ID extras
+         * @description Allowed roles: owner, admin, worker.
+         */
+        post: operations["post-api-accounts-by-slug-jobs-by-id-extras"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/accounts/{slug}/jobs/{id}/invoice": {
         parameters: {
             query?: never;
@@ -490,6 +510,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/accounts/{slug}/jobs/{id}/revised-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post API accounts by slug jobs by ID revised quote
+         * @description Allowed roles: owner, admin.
+         */
+        post: operations["post-api-accounts-by-slug-jobs-by-id-revised-quote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/accounts/{slug}/jobs/{id}/state": {
         parameters: {
             query?: never;
@@ -504,6 +544,26 @@ export interface paths {
          * @description Allowed roles: owner, admin, worker.
          */
         post: operations["post-api-accounts-by-slug-jobs-by-id-state"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/accounts/{slug}/jobs/{id}/travel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put API accounts by slug jobs by ID travel
+         * @description Allowed roles: owner, admin.
+         */
+        put: operations["put-api-accounts-by-slug-jobs-by-id-travel"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1842,6 +1902,8 @@ export interface components {
             /** Format: double */
             discount: number;
             end_on: string;
+            /** @description Lines added during the job (extra: true) */
+            extras: components["schemas"]["JobExtras"];
             /** Format: int64 */
             id: number;
             invoices: components["schemas"]["InvoiceSummary"][];
@@ -1854,6 +1916,8 @@ export interface components {
             quote?: components["schemas"]["QuoteRef"];
             /** Format: int64 */
             quote_id: number | null;
+            /** @description Revised quotes of the job sent to the customer (empty for workers) */
+            revisions: components["schemas"]["QuoteSummary"][];
             rooms: components["schemas"]["Room"][];
             site_address: string;
             site_contact: string;
@@ -1870,6 +1934,41 @@ export interface components {
             /** Format: int64 */
             vat_rate: number;
             worker_ids: number[];
+        };
+        JobExtraInput: {
+            /** Format: double */
+            discount?: number;
+            /** @description What was done or bought ("Vyrovnání podlahy", "Lepidlo navíc") */
+            name: string;
+            note?: string;
+            /** Format: double */
+            quantity: number;
+            /**
+             * @description work = extra work, material = extra material or cost, other; default work
+             * @enum {string}
+             */
+            section?: "" | "work" | "material" | "other";
+            /** @description m2, bm, ks, hod, kpl…; default hod for work, ks otherwise */
+            unit?: string;
+            /**
+             * Format: int64
+             * @description Haléře per unit (office only; crew members' lines stay unpriced = 0)
+             */
+            unit_price?: number;
+        };
+        JobExtras: {
+            /**
+             * Format: int64
+             * @description haléře without VAT (0 for workers)
+             */
+            amount: number;
+            /** Format: int64 */
+            count: number;
+            /**
+             * Format: int64
+             * @description Extra lines without a price (recorded by the crew, to be priced by the office)
+             */
+            unpriced: number;
         };
         JobFromQuote: {
             /** @description YYYY-MM-DD */
@@ -1956,6 +2055,30 @@ export interface components {
             total: number;
             worker_ids: number[];
         };
+        JobTravelInput: {
+            /**
+             * Format: double
+             * @description Kilometres of one trip (there and back)
+             */
+            km?: number;
+            /**
+             * Format: int64
+             * @description Haléře: a flat amount instead of km × trips
+             */
+            lump_sum?: number;
+            /**
+             * Format: int64
+             * @description Haléře per km; default = the catalog item "Cestovné" (else the current line's price)
+             */
+            per_km?: number;
+            /** @description Remove the travel line */
+            remove?: boolean;
+            /**
+             * Format: int64
+             * @description Number of trips; default 1
+             */
+            trips?: number;
+        };
         LabMailSettings: {
             /** @description live sending is on application-wide (Správa aplikace or the server environment) */
             app_live: boolean;
@@ -1994,6 +2117,8 @@ export interface components {
             customer_supplied: boolean;
             /** Format: double */
             discount: number;
+            /** @description Added during the job (navíc) */
+            extra: boolean;
             /** Format: int64 */
             id: number;
             measure: string;
@@ -2033,6 +2158,8 @@ export interface components {
              * @description % off this line; default = the catalog discount
              */
             discount?: number;
+            /** @description Work or cost added during the job, not in the original quote ("navíc"); kept in a revised quote */
+            extra?: boolean;
             /**
              * @description Quantity from the measurements; default = the catalog item's measure, "" = manual quantity
              * @enum {string}
@@ -2360,6 +2487,8 @@ export interface components {
             number: string;
             /** @description Laying plans the firm shows to the customer */
             plans: components["schemas"]["PublicFile"][];
+            /** @description A revised quote: the original quote it updates (extra work) */
+            revises?: components["schemas"]["RevisedFrom"];
             /** @description Only when the firm shows the measurements */
             rooms: components["schemas"]["Room"][];
             site_address: string;
@@ -2387,7 +2516,10 @@ export interface components {
             id: number;
             intro: string;
             issued_on: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description The job made from the quote, or the job a revised quote updates
+             */
             job_id: number | null;
             lines: components["schemas"]["Line"][];
             measurements: components["schemas"]["Measurements"];
@@ -2396,6 +2528,10 @@ export interface components {
             /** @description Link for the customer (view, accept, reject) */
             public_url: string;
             reason: string;
+            /** @description A revised quote of a job (extra work); accepting it creates no job */
+            revision: boolean;
+            /** @description For a revised quote: the job and the original quote it updates */
+            revision_of?: components["schemas"]["RevisionOf"];
             rooms: components["schemas"]["Room"][];
             /** Format: date-time */
             sent_at: string | null;
@@ -2486,9 +2622,14 @@ export interface components {
             /** Format: int64 */
             id: number;
             issued_on: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description The job made from the quote, or the job a revised quote updates
+             */
             job_id: number | null;
             number: string;
+            /** @description A revised quote of a job (extra work); accepting it creates no job */
+            revision: boolean;
             /** @enum {string} */
             state: "draft" | "sent" | "accepted" | "rejected";
             title: string;
@@ -2511,6 +2652,31 @@ export interface components {
             /** @description Owner's full name */
             name: string;
             password: string;
+        };
+        RevisedFrom: {
+            /** @description "" when the job had no quote */
+            number: string;
+            /**
+             * Format: int64
+             * @description haléře with VAT of the original quote
+             */
+            total: number;
+        };
+        RevisionOf: {
+            /** Format: int64 */
+            job_id: number;
+            job_number: string;
+            /**
+             * Format: int64
+             * @description The original quote (missing for a job without one)
+             */
+            quote_id: number | null;
+            quote_number: string;
+            /**
+             * Format: int64
+             * @description haléře with VAT of the original quote
+             */
+            quote_total: number;
         };
         Room: {
             name: string;
@@ -3788,6 +3954,43 @@ export interface operations {
             };
         };
     };
+    "post-api-accounts-by-slug-jobs-by-id-extras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Firm slug */
+                slug: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobExtraInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "post-api-accounts-by-slug-jobs-by-id-invoice": {
         parameters: {
             query?: never;
@@ -3862,6 +4065,39 @@ export interface operations {
             };
         };
     };
+    "post-api-accounts-by-slug-jobs-by-id-revised-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Firm slug */
+                slug: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Quote"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "post-api-accounts-by-slug-jobs-by-id-state": {
         parameters: {
             query?: never;
@@ -3876,6 +4112,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["JobStateInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "put-api-accounts-by-slug-jobs-by-id-travel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Firm slug */
+                slug: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobTravelInput"];
             };
         };
         responses: {

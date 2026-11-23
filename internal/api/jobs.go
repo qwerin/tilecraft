@@ -86,6 +86,8 @@ type Job struct {
 	Lines        []Line           `json:"lines" nullable:"false"`
 	Totals       calc.Totals      `json:"totals"`
 	Quote        *QuoteRef        `json:"quote,omitempty" doc:"The quote the job came from (missing for workers and jobs without a quote)"`
+	Extras       JobExtras        `json:"extras" doc:"Lines added during the job (extra: true)"`
+	Revisions    []QuoteSummary   `json:"revisions" nullable:"false" doc:"Revised quotes of the job sent to the customer (empty for workers)"`
 	Notes        []JobNote        `json:"notes" nullable:"false"`
 	Attachments  []Attachment     `json:"attachments" nullable:"false"`
 	Invoices     []InvoiceSummary `json:"invoices" nullable:"false"`
@@ -102,6 +104,7 @@ func (s *server) registerJobs(g huma.API) {
 	huma.Post(g, "/jobs/{id}/state", s.setJobState, auth.ForAll)
 	huma.Post(g, "/jobs/{id}/notes", s.addJobNote, status(http.StatusCreated), auth.ForAll)
 	huma.Delete(g, "/job-notes/{id}", s.deleteJobNote, status(http.StatusNoContent), auth.ForAll)
+	s.registerJobExtras(g)
 }
 
 func (s *server) toJobSummary(ctx context.Context, j *model.Job) JobSummary {
@@ -180,7 +183,8 @@ func (s *server) jobOut(ctx context.Context, id uint) (*Out[Job], error) {
 	}
 	slug := auth.AccountFrom(ctx).Slug
 	out := Job{JobSummary: s.toJobSummary(ctx, j), SiteContact: j.SiteContact, Note: j.Note, Rooms: rooms, Measurements: measurements(rooms),
-		Lines: make([]Line, len(j.Lines)), Notes: []JobNote{}, Attachments: []Attachment{}, Invoices: []InvoiceSummary{},
+		Lines: make([]Line, len(j.Lines)), Notes: []JobNote{}, Attachments: []Attachment{}, Invoices: []InvoiceSummary{}, Revisions: []QuoteSummary{},
+		Extras: jobExtras(jobLineData(j), manager),
 		AppURL: strings.TrimRight(s.cfg.PublicURL, "/") + "/a/" + slug + "/jobs/" + fmt.Sprint(j.ID)}
 	for i := range j.Lines {
 		out.Lines[i] = toLine(j.Lines[i].ID, &j.Lines[i].LineData)
@@ -195,6 +199,9 @@ func (s *server) jobOut(ctx context.Context, id uint) (*Out[Job], error) {
 			if q, err := s.loadQuote(ctx, db, *j.QuoteID); err == nil {
 				out.Quote = &QuoteRef{ID: q.ID, Number: q.Number, Totals: totalsOf(quoteLineData(q), q.Discount, q.VatRate)}
 			}
+		}
+		if out.Revisions, err = s.jobRevisions(ctx, j.ID); err != nil {
+			return nil, err
 		}
 		var invs []model.Invoice
 		if err := s.scoped(ctx).Preload("Customer").Where("job_id = ?", j.ID).Order("id").Find(&invs).Error; err != nil {
@@ -334,6 +341,9 @@ func (s *server) createJobFromQuote(ctx context.Context, in *struct {
 		if err != nil {
 			return err
 		}
+		if q.JobID != nil {
+			return conflict(CodeRevisionQuote, "a revised quote belongs to its job")
+		}
 		if q.State == model.QuoteRejected {
 			return conflict(CodeNotAccepted, "the quote was rejected")
 		}
@@ -400,6 +410,9 @@ func (s *server) deleteJob(ctx context.Context, in *struct {
 		}
 		// files of the quote stay with the quote, the job's own files go
 		if keys, err = detachJobFiles(tx, j.ID); err != nil {
+			return err
+		}
+		if err := tx.Model(&model.Quote{}).Scopes(inAccount(ctx)).Where("job_id = ?", j.ID).Update("job_id", nil).Error; err != nil {
 			return err
 		}
 		for _, m := range []any{&model.JobLine{}, &model.JobNote{}} {

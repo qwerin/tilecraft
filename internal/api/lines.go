@@ -30,6 +30,7 @@ type LineInput struct {
 	Rooms            []string `json:"rooms,omitempty" doc:"Names of the rooms the measure sums (empty = all rooms)"`
 	Waste            *float64 `json:"waste,omitempty" minimum:"0" maximum:"100" doc:"% added to the measured quantity; default = the catalog waste"`
 	Note             string   `json:"note,omitempty" maxLength:"1000"`
+	Extra            bool     `json:"extra,omitempty" doc:"Work or cost added during the job, not in the original quote (\"navíc\"); kept in a revised quote"`
 }
 
 // Line is a line with its computed amount.
@@ -49,6 +50,7 @@ type Line struct {
 	Tier             int      `json:"tier" doc:"Tile-size tier 1–3, 0 = none"`
 	TierLabel        string   `json:"tier_label" doc:"Label of the tier (\"\" = none), printed on the line"`
 	Note             string   `json:"note"`
+	Extra            bool     `json:"extra" doc:"Added during the job (navíc)"`
 	Amount           int64    `json:"amount" doc:"haléře without VAT, rounded to whole crowns"`
 }
 
@@ -59,7 +61,7 @@ func toLine(id uint, l *model.LineData) Line {
 	}
 	return Line{ID: id, Section: l.Section, CatalogItemID: l.CatalogItemID, Name: l.Name, Unit: l.Unit, Quantity: l.Quantity,
 		UnitPrice: l.UnitPrice, Discount: l.Discount, CustomerSupplied: l.CustomerSupplied, Measure: l.Measure, Rooms: rooms,
-		Waste: l.Waste, Tier: l.Tier, TierLabel: l.TierLabel, Note: l.Note, Amount: l.Amount()}
+		Waste: l.Waste, Tier: l.Tier, TierLabel: l.TierLabel, Note: l.Note, Extra: l.Extra, Amount: l.Amount()}
 }
 
 // RoomSummary is a room's measured totals.
@@ -159,7 +161,7 @@ func buildLines(ctx context.Context, tx *gorm.DB, rooms []calc.Room, in []LineIn
 	for i, l := range in {
 		loc := fmt.Sprintf("lines[%d]", i)
 		d := model.LineData{Section: l.Section, Name: strings.TrimSpace(l.Name), Unit: strings.TrimSpace(l.Unit),
-			CustomerSupplied: l.CustomerSupplied, Tier: l.Tier, TierLabel: settings.TierLabel(l.Tier), Note: l.Note, Position: i}
+			CustomerSupplied: l.CustomerSupplied, Tier: l.Tier, TierLabel: settings.TierLabel(l.Tier), Note: l.Note, Extra: l.Extra, Position: i}
 		if l.Tier < 0 || l.Tier > model.Tiers {
 			return nil, invalid(loc+".tier", "0–3")
 		}
@@ -238,7 +240,7 @@ func toInputs(lines []model.LineData) []LineInput {
 	for i, l := range lines {
 		q, p, d, m, w := l.Quantity, l.UnitPrice, l.Discount, l.Measure, l.Waste
 		out[i] = LineInput{Section: l.Section, CatalogItemID: l.CatalogItemID, Name: l.Name, Unit: l.Unit, Quantity: &q, UnitPrice: &p,
-			Discount: &d, CustomerSupplied: l.CustomerSupplied, Measure: &m, Rooms: l.Rooms, Waste: &w, Tier: l.Tier, Note: l.Note}
+			Discount: &d, CustomerSupplied: l.CustomerSupplied, Measure: &m, Rooms: l.Rooms, Waste: &w, Tier: l.Tier, Note: l.Note, Extra: l.Extra}
 	}
 	return out
 }

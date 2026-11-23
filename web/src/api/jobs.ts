@@ -13,6 +13,8 @@ export type LineInput = S['LineInput']
 export type JobNote = S['JobNote']
 export type Attachment = S['Attachment']
 export type JobState = Job['state']
+export type JobExtraInput = S['JobExtraInput']
+export type JobTravelInput = S['JobTravelInput']
 
 /** Stavy v pořadí průběhu; `cancelled` je mimo. */
 export const jobFlow: JobState[] = ['planned', 'in_progress', 'done', 'invoiced']
@@ -70,6 +72,11 @@ export const jobMutations = {
     unwrap(api.POST('/api/accounts/{slug}/jobs/{id}/notes', { params: pid(slug, id), body })),
   deleteNote: (slug: string) => (noteId: number) => unwrap(api.DELETE('/api/accounts/{slug}/job-notes/{id}', { params: pid(slug, noteId) })),
   upload: (slug: string, id: number) => (files: File[]) => uploadTo(`/api/accounts/${slug}/jobs/${id}/attachments`, files),
+  addExtra: (slug: string, id: number) => (body: JobExtraInput) =>
+    unwrap(api.POST('/api/accounts/{slug}/jobs/{id}/extras', { params: pid(slug, id), body })),
+  setTravel: (slug: string, id: number) => (body: JobTravelInput) =>
+    unwrap(api.PUT('/api/accounts/{slug}/jobs/{id}/travel', { params: pid(slug, id), body })),
+  revisedQuote: (slug: string, id: number) => () => unwrap(api.POST('/api/accounts/{slug}/jobs/{id}/revised-quote', { params: pid(slug, id) })),
   deleteAttachment: (slug: string) => (attId: number) => unwrap(api.DELETE('/api/accounts/{slug}/attachments/{id}', { params: pid(slug, attId) })),
 }
 
@@ -89,6 +96,7 @@ export function lineToInput(l: JobLine): LineInput {
     waste: l.waste,
     tier: l.tier,
     note: l.note,
+    extra: l.extra || undefined,
   }
 }
 
